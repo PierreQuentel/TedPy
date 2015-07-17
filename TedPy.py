@@ -67,7 +67,8 @@ js_keywords = [ (r'\b'+kw+r'\b') for kw in js_keywords ]
 patterns['.js'].append(('|'.join(js_keywords),'keyword'))
 zones = {'.py':[ ('"""','"""','string'),('"','"','string'),("'","'",'string'),
         ('#','\n','comment')],
-    '.js':[('"','"','string'),("'","'",'string'),('//','\n','comment')],
+    '.js':[('"','"','string'),("'","'",'string'),('//','\n','comment'),
+        ('/*','*/','comment')],
     '.html':[]
     }
 
@@ -196,27 +197,13 @@ class Editor(Frame):
 
     def change_encoding(self):
         new_enc = self.encoding.get()
-        # Try to encode document in new encoding
-        # What is currently printed is the result of encoding bytes with 
-        # previous encoding
+        # Check that the document can be encoded in the new encoding
         src = self.zone.get(1.0,END)
         try:
-            bytestring = src.encode(self.prev_enc)
+            src.encode(new_enc)
         except:
             tkinter.messagebox.showinfo(title=_('Encoding error'),
                 message=_('not encoding') %self.prev_enc)
-            
-        # The new unicode value is the result of the encoding of this 
-        # bytestring with the new encoding
-        try:
-            new_src = bytestring.decode(new_enc)
-            self.zone.delete(1.0,END)
-            self.zone.insert(END,new_src)
-            self.syntax_highlight()
-        except:
-            tkinter.messagebox.showinfo(title=_('Encoding error'),
-                message=_('cannot encode') %new_enc)
-            self.encoding.set(self.prev_enc)
         
     def click_line_nums(self,event):
         line = self.line_nums.index(CURRENT).split('.')[0]
