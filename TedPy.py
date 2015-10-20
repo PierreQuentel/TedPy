@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import sys
 import os
 import threading
@@ -864,7 +866,7 @@ def py_encoding(head):
 
 def html_encoding(html):
     # form <meta charset="...">
-    mo = re.search('\<meta\s+charset="(.*)"\s*/?\>',html,re.I)
+    mo = re.search('\<meta\s+charset="(.*?)"\s*/?\>',html,re.I)
     if mo:
         return mo.groups(0)[0]
     # form <meta http-equiv="content-type" type="...;charset=...">
