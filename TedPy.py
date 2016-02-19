@@ -860,7 +860,7 @@ def close_dialog(event):
     browser.post(event.x_root,event.y_root)
 
 def py_encoding(head):
-    mo = re.search('(?s)coding[:=]\s*([-\w.]+)',head)
+    mo = re.search('(?s)coding[:=]\s*([-\w.]+)',head, re.M)
     if mo:
         return mo.groups()[0]
 
@@ -905,14 +905,17 @@ def open_module(file_name,force_reload=False,force_encoding=None):
         return
     if os.path.splitext(file_name)[1]=='.py':
         # search a line with encoding (see PEP 0263)
-        src = open(file_name,'U')
-        head = src.readline()+src.readline()
-        file_encoding = py_encoding(head)
+        src = open(file_name,'rb')
+        try:
+            head = src.readline()+src.readline()
+            head = head.decode('ascii')
+            file_encoding = py_encoding(head)
+        except UnicodeDecodeError:
+            pass
     elif os.path.splitext(file_name)[1] in ['.html','.htm']:
         # search a meta tag with charset
         if force_encoding is None:
             file_encoding = html_encoding(open(file_name,'U',errors='ignore').read())
-            print(file_name,'encoding:',file_encoding)
             if not file_encoding:
                 tkinter.messagebox.showwarning(title=_('HTML encoding'),
                         message=_('Charset not found'))
