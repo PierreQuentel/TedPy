@@ -877,6 +877,27 @@ def html_encoding(html):
         mo = re.search('charset\s*=\s*(.+)',content,re.I+re.S)
         if mo:
             return mo.groups()[0]
+
+def guess_linefeed(txt):
+    # guess if linefeed in text is \n, \r\n or \r
+    counts = txt.count('\n'), txt.count('\r\n'), txt.count('\r')
+    if counts[0]>counts[1]:
+        return 'Unix: \\n'
+    elif counts[2]>counts[1]:
+        return 'Mac: \\r'
+    return 'DOS: \\r\\n'
+
+def set_linefeed(txt):
+    """Normalise linefeed"""
+    lf = linefeed.get()
+    # set all linefeeds to \n
+    txt = txt.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
+    if lf == 'Unix: \\n':
+        return txt
+    elif lf == 'Mac: \\r':
+        return txt.replace(b'\n', b'\r')
+    else:
+        return txt.replace(b'\n', b'\r\n')
     
 def new_module(ext):
     global current_doc
@@ -922,10 +943,10 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     if not file_encoding:
         file_encoding = encoding_for_next_open.get()
     try:
-        txt = str(open(file_name,'r',encoding=file_encoding).read())
-        txt = txt.replace('\r\n','\n') # for DOS
-        txt = txt.replace('\r','\n') # for expensive computers
+        txt = open(file_name,'r',encoding=file_encoding, newline='').read()
         txt = txt.replace('\t',' '*spaces_per_tab)
+        print(guess_linefeed(txt))
+        linefeed.set(guess_linefeed(txt))
     except UnicodeDecodeError: # try another encoding
         new_enc = EncodingChooser(_("Encoding error"),
             _("encoding_err_msg") %encoding_for_next_open.get(),
@@ -1033,9 +1054,10 @@ def save_zone():
         tkinter.messagebox.showerror('Encoding error',
             message=message)
         return False
-    out = open(doc.file_name,'wb')
-    out.write(data)
-    out.close()
+    # set linefeed
+    data = set_linefeed(data)
+    with open(doc.file_name,'wb') as out:
+        out.write(data)
     doc.text = zone.get(1.0,'%s-1c' %END)
     save_history(doc)
     file_browser.mark_if_changed()
@@ -1123,6 +1145,7 @@ encoding_for_next_open.set('utf-8')
 python_version = StringVar(root)
 python_version.trace("w",make_patterns)
 python_version.set(python_versions[0][0])
+linefeed = StringVar(root)
 target = IntVar(root)
 full_word = BooleanVar(root)
 full_word.set(True)
@@ -1173,6 +1196,11 @@ menuEncoding = Menu(menuConfig,tearoff=0)
 for enc in encodings:
     menuEncoding.add_radiobutton(label=enc,variable=encoding_for_next_open)
 menuConfig.add_cascade(menu=menuEncoding,label=_('encoding'))
+
+menuLinefeed = Menu(menuConfig,tearoff=0)
+for lf in ['Unix: \\n', 'DOS: \\r\\n', 'Mac: \\r']:
+    menuLinefeed.add_radiobutton(label = lf, variable=linefeed)
+menuConfig.add_cascade(menu=menuLinefeed, label=_('linefeed'))
 menuInterpreter = Menu(menuConfig,tearoff=0)
 for py_ver,py_int in python_versions:
     menuInterpreter.add_radiobutton(label=py_ver,variable=python_version)
