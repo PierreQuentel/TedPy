@@ -48,7 +48,7 @@ font = {'.py':Font(family="courier new",size=-13,weight='bold'),
 default_font = Font(family="courier new",size=-13)
 sh_font = Font(family="courier new",size=12, weight="bold")
 browser_font = Font(family="verdana",size=8)
-curly_font = Font(family="courier new",slant='italic',size=10,weight="bold")
+curly_font = Font(family="courier new",slant='italic',size=-13,weight="bold")
 
 # global variables
 current_doc = None
