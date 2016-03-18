@@ -943,10 +943,11 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     if not file_encoding:
         file_encoding = encoding_for_next_open.get()
     try:
-        txt = open(file_name,'r',encoding=file_encoding, newline='').read()
+        txt = open(file_name,'r',encoding=file_encoding,newline='').read()
         txt = txt.replace('\t',' '*spaces_per_tab)
-        print(guess_linefeed(txt))
         linefeed.set(guess_linefeed(txt))
+        # internally use \n, otherwise tkinter adds an extra whitespace each line
+        txt = txt.replace('\r\n', '\n') 
     except UnicodeDecodeError: # try another encoding
         new_enc = EncodingChooser(_("Encoding error"),
             _("encoding_err_msg") %encoding_for_next_open.get(),
