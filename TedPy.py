@@ -43,12 +43,6 @@ spaces_per_tab = 4
 
 root = Tk() # needed here for font definitions
 root.title("TedPy")
-font = {'.py':Font(family="courier new",size=-13,weight='bold'),
-    '.js':Font(family="courier new",size=-13,weight='bold')}
-default_font = Font(family="courier new",size=-13)
-sh_font = Font(family="courier new",size=12, weight="bold")
-browser_font = Font(family="verdana",size=8)
-curly_font = Font(family="courier new",slant='italic',size=-13,weight="bold")
 
 # global variables
 current_doc = None
@@ -106,34 +100,37 @@ class Editor(Frame):
 
     def __init__(self):
         frame = Frame(panel,relief=GROOVE,borderwidth=4)
+        
+        bar_bg = '#666'
 
-        shortcuts = Frame(frame)
+        shortcuts = Frame(frame, bg=bar_bg)
         for (src,callback) in [('⤶',self.undo),('⤷',self.redo),
             ('≡',self.change_wrap)]:
             widget = Label(shortcuts,text=src,relief=RIDGE,bg="#FFF",
                 foreground="#000",font=sh_font)
             widget.bind('<Button-1>',callback)
-            widget.pack(side=LEFT,anchor=NW)
+            widget.pack(side=LEFT,anchor=W)
         
         widget = Button(shortcuts,text='X',font=sh_font,relief=RIDGE)
         widget.bind('<Button-1>',_close)
         widget.pack(side=RIGHT,anchor=E)
-        Label(shortcuts,text='    ').pack(side=RIGHT)
-        self.label_line = Label(shortcuts,text='1')
-        self.label_column = Label(shortcuts,text='1')
+        Label(shortcuts,text='    ',bg=bar_bg).pack(side=RIGHT)
+        self.label_line = Label(shortcuts,text='1', font=font, fg='#fff', bg=bar_bg)
+        self.label_column = Label(shortcuts,text='1', font=font, fg='#fff', bg=bar_bg)
         self.label_column.pack(side=RIGHT)
-        Label(shortcuts,text=' | ').pack(side=RIGHT)
+        Label(shortcuts,text=' | ',bg=bar_bg, fg='#fff').pack(side=RIGHT)
         self.label_line.pack(side=RIGHT)
-        Label(shortcuts,text=' | ').pack(side=RIGHT)
         self.encoding = StringVar()
-        enc_label = Label(shortcuts,textvariable=self.encoding,relief=RAISED)
+        enc_label = Label(shortcuts,textvariable=self.encoding,relief=RAISED,font=font)
         enc_label.bind('<Button-1>',self.set_encoding)
         enc_label.pack(side=RIGHT)
         shortcuts.pack(fill=BOTH)
+        bg = '#222222' # background colour
         
         zone = ScrolledText(frame,width=text_width-3,
             font=default_font,wrap=NONE,relief=FLAT,undo=True,
-            autoseparators=True)
+            autoseparators=True,bg=bg,foreground='white',
+            insertbackground="white", selectbackground='#630')
         zone.vbar.config(command=self.slide)
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
         text_height = int(root_h/line_height)
@@ -144,7 +141,7 @@ class Editor(Frame):
         hbar['command'] = zone.xview
         zone['xscrollcommand'] = hbar.set
         
-        line_nums=Text(frame,width=3,background="#FFFFFF",
+        line_nums=Text(frame,width=3,background=bg,
             selectbackground="#FFFFFF",foreground="#808080",
             relief=FLAT,state=DISABLED)
         line_nums.pack(side=LEFT,fill=BOTH)
@@ -166,16 +163,16 @@ class Editor(Frame):
         zone.bind('<Configure>',self.print_line_nums)
         zone.bind('<Home>',self.home)
 
-        zone.tag_config('comment',foreground="#008000")
-        zone.tag_config('string',foreground="#408080")
-        zone.tag_config('keyword',foreground="blue")
-        zone.tag_config('builtin',foreground="#000080")
+        zone.tag_config('comment',foreground="#00A000")
+        zone.tag_config('string',foreground="#60A0A0")
+        zone.tag_config('keyword',foreground="#9999FF")
+        zone.tag_config('builtin',foreground="#00FF00")
         zone.tag_config('balise',foreground="#F00080")
-        zone.tag_config('parenthesis',foreground="#000000")
+        zone.tag_config('parenthesis',foreground="#FF00FF")
         zone.tag_config('curly_brace',foreground="#FF0000",font=curly_font)
         zone.tag_config('square_bracket',foreground="#338800")
                 
-        zone.tag_config('found',foreground="white",background="black")
+        zone.tag_config('found',foreground=bg,background="white")
         zone.tag_config('selection',background=zone['selectbackground'])
         zone.tag_bind(SEL,'<Enter>',self.enter_sel)
         
@@ -1261,9 +1258,30 @@ class FileBrowser(tkinter.Text):
         elif lib.endswith('*'):
             tkinter.Text.delete(self,self.index(end)+'-1c')
         self['state'] = DISABLED
+
+
+# make root cover the entire screen
+root.wm_state(newstate="zoomed")
+root_w, root_h = root.winfo_screenwidth(), int(root.winfo_screenheight()*0.92)
+
+fsize = -int(root_w/120)
+
+font = {'.py':Font(family="courier new",size=fsize,weight='bold'),
+    '.js':Font(family="courier new",size=fsize,weight='bold')}
+default_font = Font(family="courier new",size=fsize)
+lc_font = Font(family="courier new",size=fsize)
+sh_font = Font(family="courier new",size=int(1.5*fsize), weight="bold")
+browser_font = Font(family="verdana",size=fsize)
+curly_font = Font(family="courier new",slant='italic',size=fsize,weight="bold")
+
+pix_per_char = font['.py'].measure('0') # pixels per character in this font
+ratio = pix_per_char/font['.py']['size']
+text_width = int(0.83*root_w/pix_per_char)
+
     
 file_browser = FileBrowser(root,font=browser_font,height=38,padx=3,pady=3,
-    borderwidth=6,relief=GROOVE,cursor='arrow',state=DISABLED)
+    borderwidth=6,relief=GROOVE,cursor='arrow',state=DISABLED,
+    foreground='white', bg='#222222')
 file_browser.tag_config('selected',foreground='#000000',background="#E0E0E0")
 file_browser.pack(side=LEFT,anchor=NW,expand=YES,fill=Y)
 file_browser.bind('<ButtonRelease>',switch)
@@ -1276,14 +1294,10 @@ panel.pack(expand=YES,fill=BOTH)
 
 right.pack(expand=YES,fill=BOTH)
 
-# make root cover the entire screen
-root.wm_state(newstate="zoomed")
-root_w, root_h = root.winfo_screenwidth(), int(root.winfo_screenheight()*0.92)
-pix_per_char = font['.py'].measure('0') # pixels per character in this font
-ratio = pix_per_char/font['.py']['size']
-text_width = int(0.83*root_w/pix_per_char)
 # file browser covers 15% of width
 file_browser['width'] = int(0.15*root_w/pix_per_char) 
+
+
 
 check_file_change()
 
