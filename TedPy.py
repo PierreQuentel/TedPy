@@ -1318,8 +1318,12 @@ class FileBrowser(tkinter.Text):
         self['state'] = DISABLED
 
 
-# make root cover the entire screen
-root.wm_state(newstate="zoomed")
+# make root cover the entire screen, if supported by the OS
+try:
+    root.wm_state(newstate="zoomed")
+except:
+    root.wm_state(newstate="normal")
+
 root_w, root_h = root.winfo_screenwidth(), int(root.winfo_screenheight()*0.92)
 
 fsize = -int(root_w/100)
