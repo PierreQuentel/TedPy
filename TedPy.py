@@ -8,6 +8,7 @@ import string
 import time
 import keyword
 import configparser
+import html.parser
 
 from tkinter import *
 from tkinter.filedialog import *
@@ -68,6 +69,39 @@ zones = {'.py':[ ('"""','"""','string'),('"','"','string'),("'","'",'string'),
     '.html':[]
     }
 
+# html parser
+class HTMLParser(html.parser.HTMLParser):
+
+    def __init__(self, zone):
+        html.parser.HTMLParser.__init__(self)
+        self.zone = zone
+
+    def handle_decl(self, decl):
+        self.handle_endtag(decl)
+
+    def handle_starttag(self, tag, attrs):
+        text = self.get_starttag_text()
+        lines = text.split('\n')
+        x0, y0 = self.getpos()
+        x1 = x0 + len(lines) - 1
+        if len(lines) == 1:
+            y1 = y0 + len(text)
+        else:
+            y1 = len(lines[-1])
+        self.zone.tag_add('keyword', '{}.{}'.format(x0, y0),
+            '{}.{}'.format(x0, y0+1+len(tag)))
+        self.zone.tag_add('comment', 
+            '{}.{}'.format(x0, y0+1+len(tag)),
+            '{}.{}'.format(x1, y1))
+        self.zone.tag_add('keyword', '{}.{}'.format(x1, y1)+'-1c',
+            '{}.{}'.format(x1, y1))
+
+    def handle_endtag(self, tag):
+        x, y = self.getpos()
+        p0 = '{}.{}'.format(x, y)
+        closing_pos = self.zone.search('>', p0)
+        self.zone.tag_add('keyword', p0, closing_pos+'+1c')
+
 class EncodingError(Exception):
     pass
 
@@ -105,7 +139,8 @@ class Editor(Frame):
 
         shortcuts = Frame(frame, bg=bar_bg)
         for (src,callback) in [('⤶',self.undo),('⤷',self.redo),
-            ('≡',self.change_wrap)]:
+            ('≡',self.change_wrap), ('↑',self.change_size), 
+            ('↓',self.change_size)]:
             widget = Label(shortcuts,text=src,relief=RIDGE,bg="#FFF",
                 foreground="#000",font=sh_font)
             widget.bind('<Button-1>',callback)
@@ -127,10 +162,10 @@ class Editor(Frame):
         shortcuts.pack(fill=BOTH)
         bg = '#222222' # background colour
         
-        zone = ScrolledText(frame,width=text_width-3,
-            font=default_font,wrap=NONE,relief=FLAT,undo=True,
+        zone = ScrolledText(frame,width=text_width()-3,
+            font=font,wrap=NONE,relief=FLAT,undo=True,
             autoseparators=True,bg=bg,foreground='white',
-            insertbackground="white", selectbackground='#630')
+            insertbackground="white", selectbackground='#A60')
         zone.vbar.config(command=self.slide)
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
         text_height = int(root_h/line_height)
@@ -141,7 +176,7 @@ class Editor(Frame):
         hbar['command'] = zone.xview
         zone['xscrollcommand'] = hbar.set
         
-        line_nums=Text(frame,width=3,background=bg,
+        line_nums=Text(frame,width=3,background=bg, font=font,
             selectbackground="#FFFFFF",foreground="#808080",
             relief=FLAT,state=DISABLED)
         line_nums.pack(side=LEFT,fill=BOTH)
@@ -163,13 +198,13 @@ class Editor(Frame):
         zone.bind('<Configure>',self.print_line_nums)
         zone.bind('<Home>',self.home)
 
-        zone.tag_config('comment',foreground="#00A000")
+        zone.tag_config('comment',foreground="#6A6")
         zone.tag_config('string',foreground="#60A0A0")
         zone.tag_config('keyword',foreground="#9999FF")
         zone.tag_config('builtin',foreground="#00FF00")
         zone.tag_config('balise',foreground="#F00080")
-        zone.tag_config('parenthesis',foreground="#FF00FF")
-        zone.tag_config('curly_brace',foreground="#FF0000",font=curly_font)
+        zone.tag_config('parenthesis',foreground="#FF60FF")
+        zone.tag_config('curly_brace',foreground="#FF0000")
         zone.tag_config('square_bracket',foreground="#338800")
                 
         zone.tag_config('found',foreground=bg,background="white")
@@ -226,7 +261,7 @@ class Editor(Frame):
         self.line_nums.config(state=NORMAL)
         self.line_nums.delete(1.0,END)
         self.line_nums['width'] = 1+len(str(nb_lignes+1))
-        self.zone['width'] = text_width-self.line_nums['width']
+        self.zone['width'] = text_width()-self.line_nums['width']
         first_offset = offset = lines[0][1][1]
         char_height = self.line_nums.bbox('1.0')[3] # line height in pixels
         for line_num,bbox in lines:
@@ -250,7 +285,8 @@ class Editor(Frame):
         if docs and self.do_delayed:
             self.syntax_highlight(True)
 
-    def syntax_highlight(self,delayed=False):
+    def syntax_highlight(self,delayed=False,first=False):
+        t0 = time.time()
         file_browser.mark_if_changed()
         self.highlight = syntax_highlight.get()
         if not syntax_highlight.get():
@@ -268,13 +304,13 @@ class Editor(Frame):
 
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
-        self.font = font.get(ext,default_font)
-        self.zone.config(font=self.font)
-        self.line_nums.config(font=self.font)
+        if ext == '.html':
+            return self.html_highlight()
         if not ext in patterns:
             return
         # don't do highlighting too often
-        if self.last_update and time.time()-self.last_update < 0.2:
+        if self.last_update and \
+            time.time()-self.last_update < self.last_highlight_time:
             self.do_delayed = True
             # set a timer that will do a syntax highlight in 500 ms
             # if nothing was entered in the meantime
@@ -294,9 +330,13 @@ class Editor(Frame):
                 col = 0
         # remove existing tags
         for tag in self.zone.tag_names():
-            self.zone.tag_remove(tag,1.0,END)
+            if tag not in ['square_bracket', 'parenthesis', 'curly_brace']:
+                self.zone.tag_remove(tag,1.0,END)
         # parse text to find strings, comments, keywords
         pos = 0
+        zones[ext].sort(key=lambda x:len(x[0]), reverse=True)
+        t1 = time.time()
+        nb0 = 0
         while pos < len(txt):
             flag = False
             for start,stop,ztype in zones[ext]:
@@ -316,18 +356,27 @@ class Editor(Frame):
                         ix1 = '%s.%s' %lc[pos]
                         ix2 = '%s.%s' %lc[min(end+len(stop),len(txt)-1)]
                         self.zone.tag_add(ztype,ix1,ix2)
+                        nb0 += 1
                         pos = end+len(stop)
                         flag = True
                     break # if """ matched, don't try a single "
             if not flag:
                 pos += 1
         raw = ''.join(ltxt) # original text with empty strings and comments
+        nb = 0
         for (pattern,tag) in patterns[ext]:
             for mo in re.finditer(pattern,raw,re.S):
+                nb += 1
                 k1,k2 = mo.start(),mo.end()
                 self.zone.tag_add(tag,'%s.%s' %lc[k1],'%s.%s' %lc[k2])
         self.last_update = time.time()
-        
+        self.last_highlight_time = self.last_update-t0
+
+    def html_highlight(self):
+        txt = self.zone.get(1.0,END).rstrip()+'\n'
+        parser = HTMLParser(self.zone)
+        parser.feed(txt)
+                
     def click(self,event):
         self.zone.tag_remove('selection',1.0,END)
         self.zone.tag_remove('found',1.0,END)
@@ -552,6 +601,15 @@ class Editor(Frame):
         else:
             self.zone.config(wrap=NONE)
         self.print_line_nums()
+
+    def change_size(self, ev):
+        up = ev.widget.cget('text') == '↑'
+        previous = font.cget('size')
+        if up:
+            font.config(size=previous-1)
+        else:
+            font.config(size=previous+1)
+        self.zone.config(width=text_width()-3)
 
 class Searcher:
 
@@ -985,7 +1043,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     current_doc = docs.index(new_doc)
     file_browser.select(new_doc)
     editor.zone.mark_set(INSERT,1.0)
-    editor.syntax_highlight()
+    editor.syntax_highlight(first=True)
     editor.zone.edit_reset()
     editor.frame.pack(expand=YES,fill=BOTH)
     # wait to print lines, otherwise bbox only works for first line
@@ -1264,20 +1322,18 @@ class FileBrowser(tkinter.Text):
 root.wm_state(newstate="zoomed")
 root_w, root_h = root.winfo_screenwidth(), int(root.winfo_screenheight()*0.92)
 
-fsize = -int(root_w/120)
+fsize = -int(root_w/100)
 
-font = {'.py':Font(family="courier new",size=fsize,weight='bold'),
-    '.js':Font(family="courier new",size=fsize,weight='bold')}
-default_font = Font(family="courier new",size=fsize)
+font = Font(family="courier new",size=fsize)
 lc_font = Font(family="courier new",size=fsize)
 sh_font = Font(family="courier new",size=int(1.5*fsize), weight="bold")
 browser_font = Font(family="verdana",size=fsize)
-curly_font = Font(family="courier new",slant='italic',size=fsize,weight="bold")
+curly_font = Font(family="courier new", size=fsize, weight="bold")
 
-pix_per_char = font['.py'].measure('0') # pixels per character in this font
-ratio = pix_per_char/font['.py']['size']
-text_width = int(0.83*root_w/pix_per_char)
-
+def text_width():
+    pix_per_char = font.measure('0') # pixels per character in this font
+    ratio = pix_per_char/font['size']
+    return int(0.83*root_w/pix_per_char)
     
 file_browser = FileBrowser(root,font=browser_font,height=38,padx=3,pady=3,
     borderwidth=6,relief=GROOVE,cursor='arrow',state=DISABLED,
@@ -1295,9 +1351,7 @@ panel.pack(expand=YES,fill=BOTH)
 right.pack(expand=YES,fill=BOTH)
 
 # file browser covers 15% of width
-file_browser['width'] = int(0.15*root_w/pix_per_char) 
-
-
+file_browser['width'] = int(0.15*root_w/font.measure('0')) 
 
 check_file_change()
 
