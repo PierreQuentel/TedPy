@@ -9,6 +9,7 @@ import time
 import keyword
 import configparser
 import html.parser
+import subprocess
 
 from tkinter import *
 from tkinter.filedialog import *
@@ -314,7 +315,7 @@ class Editor(Frame):
             self.do_delayed = True
             # set a timer that will do a syntax highlight in 500 ms
             # if nothing was entered in the meantime
-            self.zone.after(500,self.delayed_sh)
+            self.zone.after(self.last_highlight_time,self.delayed_sh)
             return
         self.do_delayed = False
         txt = self.zone.get(1.0,END).rstrip()+'\n'
@@ -330,8 +331,7 @@ class Editor(Frame):
                 col = 0
         # remove existing tags
         for tag in self.zone.tag_names():
-            if tag not in ['square_bracket', 'parenthesis', 'curly_brace']:
-                self.zone.tag_remove(tag,1.0,END)
+            self.zone.tag_remove(tag,1.0,END)
         # parse text to find strings, comments, keywords
         pos = 0
         zones[ext].sort(key=lambda x:len(x[0]), reverse=True)
@@ -363,11 +363,9 @@ class Editor(Frame):
             if not flag:
                 pos += 1
         raw = ''.join(ltxt) # original text with empty strings and comments
-        nb = 0
-        for (pattern,tag) in patterns[ext]:
+        for (pattern, tag) in patterns[ext]:
             for mo in re.finditer(pattern,raw,re.S):
-                nb += 1
-                k1,k2 = mo.start(),mo.end()
+                k1, k2 = mo.start(),mo.end()
                 self.zone.tag_add(tag,'%s.%s' %lc[k1],'%s.%s' %lc[k2])
         self.last_update = time.time()
         self.last_highlight_time = self.last_update-t0
@@ -867,17 +865,17 @@ def run(*args):
         interp = interp[:-5] + interp[-4:]
     if ' ' in interp:
         interp = '"%s"'%interp
+    fname = docs[current_doc].file_name
     if sys.platform=='win32':
         # use batch file run.bat to run script in another process
         out = open("run.bat","w")
         out.write("@echo off\ncd %1%\n{0} %2%\npause\nexit".format(interp))
         out.close()
-        fname = docs[current_doc].file_name
         d_name = os.path.dirname(fname)
         d_name = d_name.replace('/','\\')
         os.system('start /D "%s" run "%s" "%s"' %(os.getcwd(),d_name,fname))
     else:   # XXX untested
-        os.spawnv(os.P_NOWAIT, interp, [interp, '"'+nfich+'"'])
+        os.spawnv(os.P_NOWAIT, interp, [interp, '"'+fname+'"'])
 
 def switch(event):
     if not docs:
