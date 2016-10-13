@@ -809,10 +809,9 @@ def save_history(doc):
         menuModule.add_command(label=file_name,
             command=lambda file_name=file_name:open_module(file_name))
         return
-    out = open('history.txt','w')
-    for line in history[-history_size:]:
-        out.write(line+'\n')
-    out.close()
+    with open('history.txt','w') as out:
+        for line in history[-history_size:]:
+            out.write(line+'\n')
     # remove entry in menu
     index = menuModule.index(END)
     deleted = False
@@ -820,7 +819,7 @@ def save_history(doc):
         if menuModule.type(index) != 'command':
             break
         else:
-            label = menuModule.entrycget(index,'label') #.encode('utf-8')
+            label = menuModule.entrycget(index,'label')
             if label == file_name:
                 menuModule.delete(index)
                 deleted = True
@@ -1229,7 +1228,7 @@ nb_menu_items = menuModule.index(END)
 # history of open files
 try:
     history = [ f.strip()
-        for f in open('history.txt').readlines()]
+        for f in open('history.txt').readlines() if f.strip()]
     if history:
         menuModule.add_separator()
         for f in history:
