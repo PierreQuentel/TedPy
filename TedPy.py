@@ -409,6 +409,10 @@ class Editor(Frame):
         self.zone.tag_remove('selection',1.0,END)
         self.zone.tag_remove('found',1.0,END)
         self.mark_brace(CURRENT)
+        # if there is a menu with all functions and classes, unpost it
+        if hasattr(self, 'browser'):
+            self.browser.unpost()
+            delattr(self, 'browser')
         # if click on a selected zone, mark possible drag and drop start
         if SEL in self.zone.tag_names(CURRENT):
             start,end = self.zone.tag_ranges(SEL)
@@ -629,6 +633,7 @@ class Editor(Frame):
                 target.set(None) # to deselect the button
             browser.yposition(10)
             browser.post(event.x_root,event.y_root)
+            self.browser = browser
         else:
             if not self.zone.get(current+'linestart',current).strip():
                 return # click on indentation
@@ -1080,7 +1085,7 @@ def resize(evt):
         set_sizes()
         if docs:
             editor = docs[current_doc].editor
-            editor.zone.config(width=editor.text_width()-3)
+            editor.zone.pack(expand=YES, fill=BOTH)
 
 def run(*args):
     if not docs or not docs[current_doc].editor.zone.get(1.0,END).strip():
