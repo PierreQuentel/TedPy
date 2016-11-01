@@ -1247,7 +1247,6 @@ def set_fonts():
 def set_sizes():
     # file browser covers 15% of width
     w, h = [int(x) for x in root.geometry().split('+')[0].split('x')]
-    
     file_browser['width'] = int(0.15*w/font.measure('0'))
 
 def set_linefeed(txt):
@@ -1444,6 +1443,7 @@ file_browser.pack(side=LEFT, anchor=NW, expand=YES, fill=Y)
 file_browser.bind('<ButtonRelease>', switch)
 file_browser.bind('<Button-3>', close_dialog)
 
+root.geometry('%sx%s' %(root.winfo_screenwidth(), root.winfo_screenheight()))
 set_sizes()    
 
 right = Frame(root)
