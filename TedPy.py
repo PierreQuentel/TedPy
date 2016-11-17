@@ -2,7 +2,6 @@
 
 import sys
 import os
-import threading
 import re
 import string
 import time
@@ -41,7 +40,6 @@ if ini.has_section('encodings'):
 # parameters
 history_size = 8 # number of files in history
 wheel_coeff = 2 # increase wheel scrolling
-spaces_per_tab = 4
 
 root = Tk() # needed here for font definitions
 root.title("TedPy")
@@ -151,14 +149,17 @@ class Editor(Frame):
         widget.bind('<Button-1>',_close)
         widget.pack(side=RIGHT,anchor=E)
         Label(shortcuts,text='    ',bg=bar_bg).pack(side=RIGHT)
-        self.label_line = Label(shortcuts,text='1', font=font, fg='#fff', bg=bar_bg)
-        self.label_column = Label(shortcuts,text='1', font=font, fg='#fff', bg=bar_bg)
+        self.label_line = Label(shortcuts,text='1', font=font, fg='#fff', 
+            bg=bar_bg)
+        self.label_column = Label(shortcuts,text='1', font=font, fg='#fff', 
+            bg=bar_bg)
         self.label_column.pack(side=RIGHT)
         Label(shortcuts,text=' | ',bg=bar_bg, fg='#fff').pack(side=RIGHT)
         self.label_line.pack(side=RIGHT)
         self.encoding = StringVar()
-        enc_label = Label(shortcuts,textvariable=self.encoding,relief=RAISED,font=font)
-        enc_label.bind('<Button-1>',self.set_encoding)
+        enc_label = Label(shortcuts, textvariable=self.encoding,
+            relief=RAISED, font=font)
+        enc_label.bind('<Button-1>', self.set_encoding)
         enc_label.pack(side=RIGHT)
         shortcuts.pack(fill=BOTH)
         bg = '#222222' # background colour
@@ -210,6 +211,8 @@ class Editor(Frame):
                 
         zone.tag_config('found',foreground=bg,background="white")
         zone.tag_config('selection',background=zone['selectbackground'])
+        zone.tag_config('too_long', background="#666666")
+
         zone.tag_bind(SEL,'<Enter>',self.enter_sel)
         
         zone.pack(expand=YES,fill=BOTH)
@@ -222,6 +225,9 @@ class Editor(Frame):
         self.click_on_sel = False
         self.last_update = None
 
+    def ix2pos(self, ix):
+        return [int(x) for x in self.zone.index(ix).split('.')]
+        
     def set_encoding(self,event):
         self.prev_enc = self.encoding.get()
         menu = Menu(self.zone,tearoff=False)
@@ -367,6 +373,12 @@ class Editor(Frame):
             for mo in re.finditer(pattern,raw,re.S):
                 k1, k2 = mo.start(),mo.end()
                 self.zone.tag_add(tag,'%s.%s' %lc[k1],'%s.%s' %lc[k2])
+        # hightlight the part that exceeds 80 characters
+        for linenum in range(1, self.ix2pos(END)[0]):
+            lineend = self.ix2pos('%s.0' %linenum+'lineend')[1]
+            if lineend>79:
+                self.zone.tag_add("too_long", '%s.%s' %(linenum, 80),
+                    '%s.%s' %(linenum, lineend))
         self.last_update = time.time()
         self.last_highlight_time = self.last_update-t0
 
@@ -462,17 +474,20 @@ class Editor(Frame):
     def insert_tab(self,event): # replace tabs by 4 spaces
         sel = self.zone.tag_ranges(SEL)
         if not sel:
-            self.zone.insert(INSERT,' '*spaces_per_tab)
+            self.zone.insert(INSERT,' '*spaces_per_tab.get())
         else:
             first_line,last_line = [int(self.zone.index(x).split('.')[0]) 
                 for x in sel]
             if self.zone.index(sel[1]).endswith('.0'):
                 last_line -= 1
             for line in range(first_line,last_line+1):
-                self.zone.insert(float(line),' '*spaces_per_tab)
+                self.zone.insert(float(line),' '*spaces_per_tab.get())
         return 'break'
 
-    def remove_tab(self,event): # shift selected zone to the left by 4 spaces
+    def remove_tab(self,event):
+        """Shift selected zone to the left by the number of spaces specified
+        in spaces_per_tab
+        """
         sel = self.zone.tag_ranges(SEL)
         if not sel:
             nb = spaces_per_tab
@@ -485,7 +500,7 @@ class Editor(Frame):
             if self.zone.index(sel[1]).endswith('.0'):
                 last_line -= 1
             for line in range(first_line,last_line+1):
-                nb = spaces_per_tab
+                nb = spaces_per_tab.get()
                 while nb and self.zone.get(float(line))==' ':
                     self.zone.delete(float(line))
                     nb -=1
@@ -502,7 +517,13 @@ class Editor(Frame):
         start = self.zone.index('%slinestart' %pos)
         txt = self.zone.get(start,pos)
         indent = len(txt)-len(txt.lstrip())
-        self.zone.insert(INSERT,'\n'+indent*' ')
+        # if the file is a Python script and line ends with ':', add indent
+        file_name = docs[current_doc].file_name
+        ext = os.path.splitext(file_name)[1]
+        if ext == '.py' and txt.endswith(':'):
+            self.zone.insert(INSERT,'\n'+(indent+spaces_per_tab)*' ')
+        else:
+            self.zone.insert(INSERT,'\n'+indent*' ')
         self.print_line_nums()
         return 'break'
 
@@ -719,7 +740,8 @@ class Searcher:
             self.zone.insert(pos,self.replacement.get())
             self.search_pos = '%s+%sc' %(pos,len(self.replacement.get()))
             self.editor.syntax_highlight()
-            self.zone.tag_add('found',pos,'%s+%sc' %(pos,len(self.replacement.get())))
+            self.zone.tag_add('found',pos,'%s+%sc' %(pos,
+                len(self.replacement.get())))
             self.zone.see(pos)
 
     def make_replace_all(self):
@@ -779,11 +801,13 @@ def search_in_files(*args):
                             zone.insert(END,'\n\n'+dirpath)
                             flag_dir = True
                         if not flag_file:
-                            zone.insert(END,'\n   %s\n' %full_path[len(default_dir())+1:]) 
+                            zone.insert(END,
+                                '\n   %s\n' %full_path[len(default_dir())+1:]) 
                             flag_file = True
                         pos_in_src = pos + mo.start()
                         lnum = src[:pos_in_src].count('\n')
-                        zone.insert(END,'\n        line %4s : %s' %(lnum+1,lines[lnum][:100]))
+                        zone.insert(END,
+                            '\n        line %4s : %s' %(lnum+1,lines[lnum][:100]))
                         pos += mo.start()+1
                         rest = rest[mo.start()+1:]
                     else:
@@ -811,7 +835,7 @@ def save_history(doc):
         return
     with open('history.txt','w') as out:
         for line in history[-history_size:]:
-            out.write(line+'\n')
+            out.write(os.path.normpath(line)+'\n')
     # remove entry in menu
     index = menuModule.index(END)
     deleted = False
@@ -988,7 +1012,8 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     elif os.path.splitext(file_name)[1] in ['.html','.htm']:
         # search a meta tag with charset
         if force_encoding is None:
-            file_encoding = html_encoding(open(file_name,'U',errors='ignore').read())
+            with open(file_name, 'U', errors='ignore') as fobj:
+                file_encoding = html_encoding(fobj.read())
             if not file_encoding:
                 tkinter.messagebox.showwarning(title=_('HTML encoding'),
                         message=_('Charset not found'))
@@ -996,7 +1021,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
         file_encoding = encoding_for_next_open.get()
     try:
         txt = open(file_name,'r',encoding=file_encoding,newline='').read()
-        txt = txt.replace('\t',' '*spaces_per_tab)
+        txt = txt.replace('\t',' '*spaces_per_tab.get())
         linefeed.set(guess_linefeed(txt))
         # internally use \n, otherwise tkinter adds an extra whitespace each line
         txt = txt.replace('\r\n', '\n') 
@@ -1198,6 +1223,8 @@ encoding_for_next_open.set('utf-8')
 python_version = StringVar(root)
 python_version.trace("w",make_patterns)
 python_version.set(python_versions[0][0])
+spaces_per_tab = IntVar(root)
+spaces_per_tab.set(4)
 linefeed = StringVar(root)
 target = IntVar(root)
 full_word = BooleanVar(root)
@@ -1215,8 +1242,9 @@ menubar=Menu(root)
 
 menuModule=Menu(menubar,tearoff=0)
 menu_new = Menu(menuModule,tearoff=0)
-menu_new.add_command(label=_('python'),command=lambda x='py':new_module(x))
-menu_new.add_command(label=_('text'),command=lambda x='txt':new_module(x))
+for label, ext in [('Python (.py)', 'py'), ('Javascript (.js)', 'js'),
+    ('HTML (.html)', 'html'), ('Text (.txt)', 'txt')]:
+    menu_new.add_command(label=label, command=lambda x=ext:new_module(x))
 menuModule.add_cascade(menu=menu_new,label=_('new'))
 menuModule.add_command(label=_('open'),accelerator="Ctrl+O",command=ask_module)
 menuModule.add_command(label=_('save as')+"...",command=save_as)
@@ -1227,8 +1255,12 @@ nb_menu_items = menuModule.index(END)
 
 # history of open files
 try:
-    history = [ f.strip()
-        for f in open('history.txt').readlines() if f.strip()]
+    history = []
+    for line in open('history.txt').readlines():
+        path = os.path.normpath(line.strip())
+        if not path in history:
+            history.append(path)
+
     if history:
         menuModule.add_separator()
         for f in history:
@@ -1249,6 +1281,11 @@ menuEncoding = Menu(menuConfig,tearoff=0)
 for enc in encodings:
     menuEncoding.add_radiobutton(label=enc,variable=encoding_for_next_open)
 menuConfig.add_cascade(menu=menuEncoding,label=_('encoding'))
+
+menuIndent = Menu(menuConfig, tearoff=0)
+for nb in [2, 4]:
+    menuIndent.add_radiobutton(label=nb, variable=spaces_per_tab)
+menuConfig.add_cascade(menu=menuIndent, label=_('spaces_per_tab'))
 
 menuLinefeed = Menu(menuConfig,tearoff=0)
 for lf in ['Unix: \\n', 'DOS: \\r\\n', 'Mac: \\r']:
