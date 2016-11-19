@@ -110,11 +110,11 @@ class Document:
 
     def __init__(self,file_name,ext=None,text=""):
         self.has_name = file_name is not None
-        self.file_name = file_name
         if file_name is None:
-            self.file_name = os.path.normpath(os.path.join(default_dir(),
-                    "module%s.%s" %(Document.num,ext)))
+            file_name = os.path.join(default_dir(),
+                    "module%s.%s" %(Document.num,ext))
             Document.num += 1
+        self.file_name = os.path.normpath(file_name)
         self.text = text
 
 class EncodingChooser(tkinter.simpledialog._QueryDialog):
@@ -182,8 +182,7 @@ class Editor(Frame):
             selectbackground="#FFFFFF",foreground="#808080",
             relief=FLAT,state=DISABLED)
         line_nums.pack(side=LEFT,fill=BOTH)
-        line_nums.bind('<Button-1>',self.click_line_nums)
-
+        
         zone.bind('<Key>',self.key_pressed)
         zone.bind('<KeyRelease>',self.update)
         zone.bind('<MouseWheel>',self.wheel)
@@ -212,6 +211,8 @@ class Editor(Frame):
         zone.tag_config('found',foreground=bg,background="white")
         zone.tag_config('selection',background=zone['selectbackground'])
         zone.tag_config('too_long', background="#666666")
+        zone.tag_config('matching_brace', background="#444", foreground="#ff6")
+        zone.tag_config('lone_brace', underline=1)
 
         zone.tag_bind(SEL,'<Enter>',self.enter_sel)
         
@@ -245,12 +246,6 @@ class Editor(Frame):
         except:
             tkinter.messagebox.showinfo(title=_('Encoding error'),
                 message=_('not encoding') %self.prev_enc)
-        
-    def click_line_nums(self,event):
-        line = self.line_nums.index(CURRENT).split('.')[0]
-        self.zone.mark_set(INSERT,'%s.0' %line)
-        self.zone.focus()
-        return 'break'
 
     def print_line_nums(self,*args):
         w_height = int(self.zone.winfo_geometry().split('+')[0].split('x')[0])
@@ -319,9 +314,9 @@ class Editor(Frame):
         if self.last_update and \
             time.time()-self.last_update < self.last_highlight_time:
             self.do_delayed = True
-            # set a timer that will do a syntax highlight in 500 ms
+            # set a timer that will do a syntax highlight later
             # if nothing was entered in the meantime
-            self.zone.after(self.last_highlight_time,self.delayed_sh)
+            self.zone.after(int(1000*self.last_highlight_time), self.delayed_sh)
             return
         self.do_delayed = False
         txt = self.zone.get(1.0,END).rstrip()+'\n'
@@ -390,6 +385,7 @@ class Editor(Frame):
     def click(self,event):
         self.zone.tag_remove('selection',1.0,END)
         self.zone.tag_remove('found',1.0,END)
+        self.mark_brace(CURRENT)
         # if click on a selected zone, mark possible drag and drop start
         if SEL in self.zone.tag_names(CURRENT):
             start,end = self.zone.tag_ranges(SEL)
@@ -452,12 +448,47 @@ class Editor(Frame):
         if not event.keysym in ['Up','Down','Left','Right','Next','Prior',
             'Home','End','Control_L','Control_R']:
             self.syntax_highlight()
+        self.mark_brace(INSERT)
         if not event.char:
             if event.keysym in ['Next','Prior','BackSpace','Delete'] \
                 or self.current_line < self.first_visible \
                 or self.current_line > self.last_visible:
                 self.print_line_nums()
 
+    def mark_brace(self, pos):
+        self.zone.tag_remove('matching_brace', '1.0', END)
+        for p in pos, pos+'-1c':
+            if "string" in self.zone.tag_names(p):
+                continue
+            car = self.zone.get(self.zone.index(p))
+            if car in '([{':
+                # opening brace : look for closing (after)
+                match, start, nb = ')]}'['([{'.index(car)], p, 1
+                incr, comp, end_pos = "+1c", '>=', END
+            elif car in '}])':
+                # closing brace : look for opening (before)
+                match, start, nb = '([{'[')]}'.index(car)], p, 1
+                incr, comp, end_pos = "-1c", '<=', '1.0'
+            else:
+                continue
+            while True:
+                p = self.zone.index(p+incr)
+                if self.zone.compare(p, comp, end_pos):
+                    self.zone.tag_add('lone_brace', start)
+                    break
+                elif 'string' in self.zone.tag_names(p):
+                    continue
+                else:
+                    c = self.zone.get(p)
+                    if c == car:
+                        nb += 1
+                    elif c == match:
+                        nb -= 1
+                        if nb == 0:
+                            self.zone.tag_add('matching_brace', start)
+                            self.zone.tag_add('matching_brace', p)
+                            return
+        
     def wheel(self,event):
         global wheel_delta
         if event.delta != 0:
@@ -490,7 +521,7 @@ class Editor(Frame):
         """
         sel = self.zone.tag_ranges(SEL)
         if not sel:
-            nb = spaces_per_tab
+            nb = spaces_per_tab.get()
             while nb and self.zone.get(INSERT)==' ':
                 self.zone.delete(INSERT)
                 nb -=1
@@ -521,7 +552,7 @@ class Editor(Frame):
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
         if ext == '.py' and txt.endswith(':'):
-            self.zone.insert(INSERT,'\n'+(indent+spaces_per_tab)*' ')
+            self.zone.insert(INSERT,'\n'+(indent+spaces_per_tab.get())*' ')
         else:
             self.zone.insert(INSERT,'\n'+indent*' ')
         self.print_line_nums()
@@ -822,7 +853,7 @@ def replace(*args):
 def save_history(doc):
     file_name = doc.file_name
     try:
-        history = [line.strip()
+        history = [os.path.normpath(line.strip())
             for line in open('history.txt').readlines()
             if line.strip() and not line.strip() == file_name]+[file_name]
     except IOError:
@@ -1103,7 +1134,7 @@ def save_as():
         initialdir=default_dir(),defaultextension=".py")
     if file_name:
         doc = docs[current_doc]
-        doc.file_name = file_name
+        doc.file_name = os.path.normpath(file_name)
         root.title('TedPy - {}'.format(file_name))
         file_browser.delete(doc)
         file_browser.update()
