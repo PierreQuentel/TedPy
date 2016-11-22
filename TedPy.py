@@ -371,8 +371,8 @@ class Editor(Frame):
         # hightlight the part that exceeds 80 characters
         for linenum in range(1, self.ix2pos(END)[0]):
             lineend = self.ix2pos('%s.0' %linenum+'lineend')[1]
-            if lineend>79:
-                self.zone.tag_add("too_long", '%s.%s' %(linenum, 80),
+            if lineend>78:
+                self.zone.tag_add("too_long", '%s.%s' %(linenum, 78),
                     '%s.%s' %(linenum, lineend))
         self.last_update = time.time()
         self.last_highlight_time = self.last_update-t0
@@ -456,6 +456,10 @@ class Editor(Frame):
                 self.print_line_nums()
 
     def mark_brace(self, pos):
+        file_name = docs[current_doc].file_name
+        ext = os.path.splitext(file_name)[1]
+        if not ext in patterns:
+            return
         self.zone.tag_remove('matching_brace', '1.0', END)
         for p in pos, pos+'-1c':
             if "string" in self.zone.tag_names(p):
