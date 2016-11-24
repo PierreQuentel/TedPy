@@ -1,1 +1,4 @@
 C:\Programmation\tedpy-20150517\trunk\js_keywords.py
+C:\Mes documents\Pierre\russe\cartes2.html
+C:\Mes documents\Pierre\cours de français\fiche1.html
+C:\TedPy\20161118\TedPy.py
