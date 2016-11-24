@@ -8,7 +8,6 @@ import time
 import keyword
 import configparser
 import html.parser
-import subprocess
 
 from tkinter import *
 from tkinter.filedialog import *
@@ -24,7 +23,7 @@ translation.language = 'fr'
 _ = translation.translate
 
 python_versions = [ ('Python %s.%s' %sys.version_info[:2],sys.executable)]
-encodings = ['ascii','iso-8859-1','latin-1','utf-8','cp850']
+encodings = ['ascii', 'iso-8859-1', 'latin-1', 'utf-8', 'cp850']
 
 # config
 ini = configparser.ConfigParser(allow_no_value=True)
@@ -53,8 +52,7 @@ docs = []
 square_brackets = r'[\[\]]'
 curly_braces = r'[\{\}]'
 parenthesis = r'[\(\)]'
-patterns = {'.html':[],
-    '.js':[]} # for Python, set by make_patterns()
+patterns = {'.html':[], '.js':[]} # for Python, set by make_patterns()
 for lang in patterns:
     patterns[lang]+=[(square_brackets,'square_bracket'),
         (parenthesis,'parenthesis'),(curly_braces,'curly_brace')]
@@ -106,14 +104,17 @@ class EncodingError(Exception):
 
 class Document:
 
-    num = 1
-
-    def __init__(self,file_name,ext=None,text=""):
+    def __init__(self, file_name, ext=None, text=""):
         self.has_name = file_name is not None
         if file_name is None:
-            file_name = os.path.join(default_dir(),
-                    "module%s.%s" %(Document.num,ext))
-            Document.num += 1
+            # find the first available name "moduleXXX.ext"
+            num = 1
+            while True:
+                file_name = os.path.join(default_dir(), 
+                    "module%s.%s" %(num,ext))
+                if not os.path.exists(file_name):
+                    break
+                num += 1
         self.file_name = os.path.normpath(file_name)
         self.text = text
 
@@ -122,7 +123,8 @@ class EncodingChooser(tkinter.simpledialog._QueryDialog):
     def body(self,master):
         w = Label(master, text=self.prompt, justify=LEFT)
         w.grid(row=0, padx=5, sticky=W)
-        for i,enc in enumerate(enc for enc in encodings if enc != self.initialvalue.get()):
+        for i,enc in enumerate(enc for enc in encodings 
+            if enc != self.initialvalue.get()):
             Radiobutton(master,text=enc,variable=self.initialvalue,
                 value=enc,padx=15).grid(row=1+i,sticky=W)
 
@@ -135,88 +137,102 @@ class Editor(Frame):
         frame = Frame(panel,relief=GROOVE,borderwidth=4)
         
         bar_bg = '#666'
-
+        self.font = font
+        
         shortcuts = Frame(frame, bg=bar_bg)
-        for (src,callback) in [('⤶',self.undo),('⤷',self.redo),
+        for (src,callback) in [('⤶',self.undo), ('⤷',self.redo),
             ('≡',self.change_wrap), ('↑',self.change_size), 
             ('↓',self.change_size)]:
-            widget = Label(shortcuts,text=src,relief=RIDGE,bg="#FFF",
-                foreground="#000",font=sh_font)
-            widget.bind('<Button-1>',callback)
-            widget.pack(side=LEFT,anchor=W)
+            widget = Label(shortcuts, text=src, relief=RIDGE, bg="#FFF",
+                foreground="#000", font=sh_font)
+            widget.bind('<Button-1>', callback)
+            widget.pack(side=LEFT, anchor=W)
         
-        widget = Button(shortcuts,text='X',font=sh_font,relief=RIDGE)
-        widget.bind('<Button-1>',_close)
-        widget.pack(side=RIGHT,anchor=E)
-        Label(shortcuts,text='    ',bg=bar_bg).pack(side=RIGHT)
-        self.label_line = Label(shortcuts,text='1', font=font, fg='#fff', 
+        widget = Button(shortcuts, text='X', font=sh_font, relief=RIDGE)
+        widget.bind('<Button-1>', _close)
+        widget.pack(side=RIGHT, anchor=E)
+        Label(shortcuts, text='    ', bg=bar_bg).pack(side=RIGHT)
+        self.label_line = Label(shortcuts, text='1', font=font, fg='#fff', 
             bg=bar_bg)
-        self.label_column = Label(shortcuts,text='1', font=font, fg='#fff', 
+        self.label_column = Label(shortcuts, text='1', font=font, fg='#fff', 
             bg=bar_bg)
         self.label_column.pack(side=RIGHT)
-        Label(shortcuts,text=' | ',bg=bar_bg, fg='#fff').pack(side=RIGHT)
+        Label(shortcuts, text=' | ', bg=bar_bg, fg='#fff').pack(side=RIGHT)
         self.label_line.pack(side=RIGHT)
         self.encoding = StringVar()
         enc_label = Label(shortcuts, textvariable=self.encoding,
             relief=RAISED, font=font)
         enc_label.bind('<Button-1>', self.set_encoding)
         enc_label.pack(side=RIGHT)
+        Label(shortcuts, text=_("encoding"), bg=bar_bg, 
+            fg="#fff").pack(side=RIGHT)
+        
+        self.spaces_per_tab = IntVar()
+        self.spaces_per_tab.set(4)
+        spaces_per_tab_label = Label(shortcuts, 
+            textvariable=self.spaces_per_tab, relief=RAISED, font=font)
+        spaces_per_tab_label.bind('<Button-1>', self.set_spaces_per_tab)
+        spaces_per_tab_label.pack(side=RIGHT)
+        Label(shortcuts, text=_("spaces_per_tab"), bg=bar_bg, 
+            fg="#fff").pack(side=RIGHT)
+        
         shortcuts.pack(fill=BOTH)
         bg = '#222222' # background colour
         
-        zone = ScrolledText(frame,width=text_width()-3,
-            font=font,wrap=NONE,relief=FLAT,undo=True,
-            autoseparators=True,bg=bg,foreground='white',
+        zone = ScrolledText(frame, width=self.text_width()-3,
+            font=self.font, wrap=NONE, relief=FLAT, undo=True,
+            autoseparators=True, bg=bg, foreground='white',
             insertbackground="white", selectbackground='#A60')
         zone.vbar.config(command=self.slide)
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
-        text_height = int(root_h/line_height)
+        text_height = int(int(root.winfo_screenheight()*0.92)/line_height)
         zone['height'] = text_height
         
-        hbar = Scrollbar(frame, name='hbar',orient=HORIZONTAL,bg="red")
+        hbar = Scrollbar(frame, name='hbar', orient=HORIZONTAL, bg="red")
         hbar.pack(side=BOTTOM, fill=BOTH, expand=YES)
         hbar['command'] = zone.xview
         zone['xscrollcommand'] = hbar.set
         
-        line_nums=Text(frame,width=3,background=bg, font=font,
-            selectbackground="#FFFFFF",foreground="#808080",
-            relief=FLAT,state=DISABLED)
+        line_nums=Text(frame, width=3, background=bg, font=font,
+            selectbackground="#FFFFFF", foreground="#808080",
+            relief=FLAT, state=DISABLED)
         line_nums.pack(side=LEFT,fill=BOTH)
         
-        zone.bind('<Key>',self.key_pressed)
-        zone.bind('<KeyRelease>',self.update)
-        zone.bind('<MouseWheel>',self.wheel)
-        zone.bind('<Tab>',self.insert_tab)
-        zone.bind('<Shift-Tab>',self.remove_tab)
-        zone.bind('<Return>',self.insert_cr)
-        zone.bind('<Button-1>',self.click)
-        zone.bind('<Leave>',self.leave)
-        zone.bind('<Enter>',self.enter)
-        zone.bind('<ButtonRelease-1>',self.button_release)
-        zone.bind('<Button-3>',self.right_click)
-        zone.bind('<Control-KeyRelease-v>',self.paste)
-        zone.bind('<Control-Key>',self.set_control)
-        zone.bind('<Configure>',self.print_line_nums)
-        zone.bind('<Home>',self.home)
+        zone.bind('<Key>', self.key_pressed)
+        zone.bind('<KeyRelease>', self.update)
+        zone.bind('<MouseWheel>', self.wheel)
+        zone.bind('<Tab>', self.insert_tab)
+        zone.bind('<Shift-Tab>', self.remove_tab)
+        zone.bind('<Return>', self.insert_cr)
+        zone.bind('<Button-1>', self.click)
+        zone.bind('<Leave>', self.leave)
+        zone.bind('<Enter>', self.enter)
+        zone.bind('<ButtonRelease-1>', self.button_release)
+        zone.bind('<Button-3>', self.right_click)
+        zone.bind('<Control-KeyRelease-v>', self.paste)
+        zone.bind('<Control-Key>', self.set_control)
+        zone.bind('<Configure>', self.print_line_nums)
+        zone.bind('<Home>', self.home)
 
-        zone.tag_config('comment',foreground="#6A6")
-        zone.tag_config('string',foreground="#60A0A0")
-        zone.tag_config('keyword',foreground="#9999FF")
-        zone.tag_config('builtin',foreground="#00FF00")
-        zone.tag_config('balise',foreground="#F00080")
-        zone.tag_config('parenthesis',foreground="#FF60FF")
-        zone.tag_config('curly_brace',foreground="#FF0000")
-        zone.tag_config('square_bracket',foreground="#338800")
+        zone.tag_config('comment', foreground="#6A6")
+        zone.tag_config('string', foreground="#60A0A0")
+        zone.tag_config('keyword', foreground="#9999FF")
+        zone.tag_config('builtin', foreground="#00FF00")
+        zone.tag_config('balise', foreground="#F00080")
+        zone.tag_config('parenthesis', foreground="#FF60FF")
+        zone.tag_config('curly_brace', foreground="#FF0000")
+        zone.tag_config('square_bracket', foreground="#338800")
                 
-        zone.tag_config('found',foreground=bg,background="white")
-        zone.tag_config('selection',background=zone['selectbackground'])
+        zone.tag_config('found', foreground=bg, background="white")
+        zone.tag_config('selection', background=zone['selectbackground'])
         zone.tag_config('too_long', background="#666666")
-        zone.tag_config('matching_brace', background="#444", foreground="#ff6")
+        zone.tag_config('matching_brace', background="#444", 
+            foreground="#ff6")
         zone.tag_config('lone_brace', underline=1)
 
         zone.tag_bind(SEL,'<Enter>',self.enter_sel)
         
-        zone.pack(expand=YES,fill=BOTH)
+        zone.pack(expand=YES, fill=BOTH)
 
         self.zone = zone
         self.frame = frame
@@ -235,6 +251,12 @@ class Editor(Frame):
         for encoding in encodings:
             menu.add_radiobutton(label=encoding,variable=self.encoding,
                 command=self.change_encoding)
+        menu.post(event.x_root,event.y_root)
+
+    def set_spaces_per_tab(self, event):
+        menu = Menu(self.zone, tearoff=False)
+        for value in [2, 4]:
+            menu.add_radiobutton(label=value, variable=self.spaces_per_tab)
         menu.post(event.x_root,event.y_root)
 
     def change_encoding(self):
@@ -263,7 +285,7 @@ class Editor(Frame):
         self.line_nums.config(state=NORMAL)
         self.line_nums.delete(1.0,END)
         self.line_nums['width'] = 1+len(str(nb_lignes+1))
-        self.zone['width'] = text_width()-self.line_nums['width']
+        self.zone['width'] = self.text_width()-self.line_nums['width']
         first_offset = offset = lines[0][1][1]
         char_height = self.line_nums.bbox('1.0')[3] # line height in pixels
         for line_num,bbox in lines:
@@ -509,14 +531,14 @@ class Editor(Frame):
     def insert_tab(self,event): # replace tabs by 4 spaces
         sel = self.zone.tag_ranges(SEL)
         if not sel:
-            self.zone.insert(INSERT,' '*spaces_per_tab.get())
+            self.zone.insert(INSERT,' '*self.spaces_per_tab.get())
         else:
             first_line,last_line = [int(self.zone.index(x).split('.')[0]) 
                 for x in sel]
             if self.zone.index(sel[1]).endswith('.0'):
                 last_line -= 1
             for line in range(first_line,last_line+1):
-                self.zone.insert(float(line),' '*spaces_per_tab.get())
+                self.zone.insert(float(line),' '*self.spaces_per_tab.get())
         return 'break'
 
     def remove_tab(self,event):
@@ -525,7 +547,7 @@ class Editor(Frame):
         """
         sel = self.zone.tag_ranges(SEL)
         if not sel:
-            nb = spaces_per_tab.get()
+            nb = self.spaces_per_tab.get()
             while nb and self.zone.get(INSERT)==' ':
                 self.zone.delete(INSERT)
                 nb -=1
@@ -535,7 +557,7 @@ class Editor(Frame):
             if self.zone.index(sel[1]).endswith('.0'):
                 last_line -= 1
             for line in range(first_line,last_line+1):
-                nb = spaces_per_tab.get()
+                nb = self.spaces_per_tab.get()
                 while nb and self.zone.get(float(line))==' ':
                     self.zone.delete(float(line))
                     nb -=1
@@ -556,7 +578,8 @@ class Editor(Frame):
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
         if ext == '.py' and txt.endswith(':'):
-            self.zone.insert(INSERT,'\n'+(indent+spaces_per_tab.get())*' ')
+            self.zone.insert(INSERT,'\n'+
+                (indent+self.spaces_per_tab.get())*' ')
         else:
             self.zone.insert(INSERT,'\n'+indent*' ')
         self.print_line_nums()
@@ -583,7 +606,7 @@ class Editor(Frame):
     def right_click(self,event):
         ext = os.path.splitext(docs[current_doc].file_name)[1]
         if ext == '.py':
-            kws = ['def','class']
+            kws = ['def', 'class']
         elif ext == '.js':
             kws = ['function']
         else:
@@ -591,15 +614,19 @@ class Editor(Frame):
         current = self.zone.index(CURRENT)
         if current == self.zone.index(current+'lineend'):
             # menu to reach all functions, classes and methods in the script
-            browser = Menu(root,tearoff=0,relief=FLAT,background="orange")
+            targets = []
             lines = [x.rstrip() for x in self.zone.get(1.0,END).split('\n')]
             for i,line in enumerate(lines):
                 for kw in kws:
                     if line.lstrip().startswith(kw+' '):
-                        label,num = line[:line.find('(')],i+1
-                        browser.add_radiobutton(label=label,variable=target,
-                            value=num,command=self.goto)
-                        target.set(None) # to deselect the button
+                        label, num = line[:line.find('(')],i+1
+                        targets.append((label, num))
+            browser = Menu(root, tearoff=0, relief=FLAT, 
+                background="#d0d7e2")
+            for label, num in targets:
+                browser.add_radiobutton(label=label, variable=target,
+                    value=num, command=self.goto)
+                target.set(None) # to deselect the button
             browser.yposition(10)
             browser.post(event.x_root,event.y_root)
         else:
@@ -623,7 +650,7 @@ class Editor(Frame):
                 label = self.zone.get(pos,pos+'lineend')
                 num = int(pos.split('.')[0])
                 browser = Menu(root,tearoff=0,relief=FLAT,
-                    background="orange")
+                    background="#d0d7e2")
                 browser.add_radiobutton(label=label,variable=target,
                     value=num,command=self.goto)
                 browser.post(event.x_root,event.y_root+5)
@@ -657,13 +684,18 @@ class Editor(Frame):
         self.print_line_nums()
 
     def change_size(self, ev):
+        """Called when clicking on button ↑ or ↓"""
         up = ev.widget.cget('text') == '↑'
-        previous = font.cget('size')
+        previous = self.font.cget('size')
         if up:
-            font.config(size=previous-1)
+            self.font.config(size=previous-1)
         else:
-            font.config(size=previous+1)
-        self.zone.config(width=text_width()-3)
+            self.font.config(size=previous+1)
+        self.zone.config(width=self.text_width()-3)
+
+    def text_width(self):
+        pix_per_char = self.font.measure('0') # pixels per char in this font
+        return int(0.83*root.winfo_screenwidth()/pix_per_char)
 
 class Searcher:
 
@@ -802,161 +834,59 @@ class Searcher:
             self.zone.edit_separator()
         self.zone['autoseparator'] = True # reset to default
 
-def search(*args):
-    if docs:
-        Searcher().search()
+def ask_module(*args):
+    file_name=askopenfilename(initialdir=default_dir())
+    if file_name:
+        open_module(file_name)
 
-def search_in_files(*args):
-    txt = tkinter.simpledialog.askstring(_('search in files'),'search')
-    if txt:
-        pattern = re.sub(r'([$\.()\[\]])',r'\\\1',txt)
-        pattern = r'%s' %pattern
-        top = Toplevel()
-        zone = ScrolledText(top,width=120,height=40)
-        zone.pack()
-        top.title('Recherche dans les fichiers - %s' %default_dir())
-        zone.insert(END,'Chaine : %s\n\n' %txt)
-        for dirpath,dirnames,filenames in os.walk(default_dir()):
-            flag_dir = False
-            if '.hg' in dirnames:
-                dirnames.remove('.hg')
-            for fname in filenames:
-                if fname.endswith('.gz'):
-                    continue
-                flag_file = False
-                full_path = os.path.join(dirpath,fname)
-                src = open(full_path,encoding='iso-8859-1').read()
-                rest = src
-                lines = src.split('\n')
-                pos = 0
-                while True:
-                    mo = re.search(pattern,rest)
-                    if mo:
-                        if not flag_dir:
-                            zone.insert(END,'\n\n'+dirpath)
-                            flag_dir = True
-                        if not flag_file:
-                            zone.insert(END,
-                                '\n   %s\n' %full_path[len(default_dir())+1:]) 
-                            flag_file = True
-                        pos_in_src = pos + mo.start()
-                        lnum = src[:pos_in_src].count('\n')
-                        zone.insert(END,
-                            '\n        line %4s : %s' %(lnum+1,lines[lnum][:100]))
-                        pos += mo.start()+1
-                        rest = rest[mo.start()+1:]
-                    else:
-                        if flag_file:
-                            zone.insert(END,'\n')
-                        break
-
-def replace(*args):
-    if docs:
-        Searcher().replace()
-
-def save_history(doc):
-    file_name = doc.file_name
-    try:
-        history = [os.path.normpath(line.strip())
-            for line in open('history.txt').readlines()
-            if line.strip() and not line.strip() == file_name]+[file_name]
-    except IOError:
-        out = open('history.txt','w')
-        out.write(file_name+'\n')
-        out.close()
-        menuModule.add_separator()
-        menuModule.add_command(label=file_name,
-            command=lambda file_name=file_name:open_module(file_name))
-        return
-    with open('history.txt','w') as out:
-        for line in history[-history_size:]:
-            out.write(os.path.normpath(line)+'\n')
-    # remove entry in menu
-    index = menuModule.index(END)
-    deleted = False
-    while index > 0:
-        if menuModule.type(index) != 'command':
-            break
-        else:
-            label = menuModule.entrycget(index,'label')
-            if label == file_name:
-                menuModule.delete(index)
-                deleted = True
-                break
-            else:
-                index -= 1
-    if not deleted:
-        if menuModule.index(END)>nb_menu_items+history_size:
-            menuModule.delete(nb_menu_items+2) # oldest file in history
-    # add to menu
-    menuModule.add_command(label=file_name,
-        command=lambda file_name=file_name:open_module(file_name))
-    # save last modif time
-    doc.last_modif = os.stat(file_name).st_mtime
-
-def default_dir():
+def check_file_change():
+    # check every second if file has been modified by another program
     if docs and docs[current_doc].has_name:
-        return os.path.dirname(docs[current_doc].file_name)
-    try:
-        return os.path.dirname(open('history.txt').readlines()[-1])
-    except IOError:
-        return os.getcwd()
+        doc = docs[current_doc]
+        if os.path.exists(doc.file_name): # may have been moved or deleted
+            if doc.last_modif != os.stat(doc.file_name).st_mtime:
+                askreload = tkinter.messagebox.askyesno(title=_("File changed"),
+                    message=_("file_change") %doc.file_name)
+                if askreload:
+                    _close()
+                    open_module(doc.file_name)
+                else:
+                    doc.last_modif = os.stat(doc.file_name).st_mtime
+    root.after(1000,check_file_change)
 
-def run(*args):
-    if not docs or not docs[current_doc].editor.zone.get(1.0,END).strip():
-        return
-    if docs[current_doc].file_name is None:
-        save_as()
-    if not docs[current_doc].file_name.endswith('.py'):
-        tkinter.messagebox.showerror(title="Execution error",
-            message="This is not a Python script")
-        return
-    save() # in case text or encoding changed
-    # check if first line indicates interpreter
-    first_line = docs[current_doc].editor.zone.get(1.0,'1.0lineend')
-    if first_line.startswith("#!"):
-        interp = first_line[2:]
-    else:
-        interp = dict(python_versions)[python_version.get()]
-    if interp.lower().endswith("w.exe"):
-        # On Windows, use python.exe, not pythonw.exe
-        interp = interp[:-5] + interp[-4:]
-    if ' ' in interp:
-        interp = '"%s"'%interp
-    fname = docs[current_doc].file_name
-    if sys.platform=='win32':
-        # use batch file run.bat to run script in another process
-        out = open("run.bat","w")
-        out.write("@echo off\ncd %1%\n{0} %2%\npause\nexit".format(interp))
-        out.close()
-        d_name = os.path.dirname(fname)
-        d_name = d_name.replace('/','\\')
-        os.system('start /D "%s" run "%s" "%s"' %(os.getcwd(),d_name,fname))
-    else:   # XXX untested
-        os.spawnv(os.P_NOWAIT, interp, [interp, '"'+fname+'"'])
+def check_if_changed(confirm=True):
+    if docs[current_doc].editor.zone.get(1.0,'%s-1c' %END) != \
+        docs[current_doc].text:
+        flag = True
+        if confirm:
+            flag = tkinter.messagebox.askquestion("File modified",
+                "File %s changed. Save it ?" %docs[current_doc].file_name)
+        if flag != 'no':
+            save()
 
-def switch(event):
+def _close(*args):
+    global current_doc
     if not docs:
         return
-    line_num = int(event.widget.index(CURRENT).split('.')[0])-1
-    if not line_num in file_browser.doc_at_line:
-        return
-    new_index = docs.index(file_browser.doc_at_line[line_num]) 
-    if new_index==current_doc:
-        return
-    else:
-        switch_to(new_index)
-
-def switch_to(new_index):
-    global current_doc
+    if docs[current_doc].editor.zone.get(1.0,'%s-1c' %END) != \
+        docs[current_doc].text:
+        flag = tkinter.messagebox.askquestion("File modified",
+            "File %s changed. Save it ?" %docs[current_doc].file_name)
+        if flag != 'no':
+            if not save():
+                return
     docs[current_doc].editor.frame.pack_forget()
-    new_doc = docs[new_index]
-    current_doc = new_index
-    docs[current_doc].editor.frame.pack()
-    root.title('TedPy - {}'.format(docs[current_doc].file_name))
-    file_browser.select(new_doc)
-    docs[current_doc].editor.zone.focus()
-    syntax_highlight.set(docs[current_doc].editor.highlight)
+    del docs[current_doc]
+    file_browser.update()
+    if docs:
+        current_doc = len(docs)-1
+        docs[current_doc].editor.frame.pack()
+        root.title('TedPy - {}'.format(docs[current_doc].file_name))
+        file_browser.select(docs[-1])
+        docs[current_doc].editor.zone.focus()
+    else:
+        current_doc = None
+        root.title('TedPy')
 
 def close_dialog(event):
     global current_doc
@@ -970,10 +900,28 @@ def close_dialog(event):
     browser.add_command(label="close",command=_close)
     browser.post(event.x_root,event.y_root)
 
-def py_encoding(head):
-    mo = re.search('(?s)coding[:=]\s*([-\w.]+)',head, re.M)
-    if mo:
-        return mo.groups()[0]
+def close_window(*args):
+    while docs:
+        current_doc = -1
+        _close()
+    root.destroy()
+
+def default_dir():
+    if docs and docs[current_doc].has_name:
+        return os.path.dirname(docs[current_doc].file_name)
+    try:
+        return os.path.dirname(open('history.txt').readlines()[-1])
+    except IOError:
+        return os.getcwd()
+
+def guess_linefeed(txt):
+    # guess if linefeed in text is \n, \r\n or \r
+    counts = txt.count('\n'), txt.count('\r\n'), txt.count('\r')
+    if counts[0]>counts[1]:
+        return 'Unix: \\n'
+    elif counts[2]>counts[1]:
+        return 'Mac: \\r'
+    return 'DOS: \\r\\n'
 
 def html_encoding(html):
     # form <meta charset="...">
@@ -989,27 +937,33 @@ def html_encoding(html):
         if mo:
             return mo.groups()[0]
 
-def guess_linefeed(txt):
-    # guess if linefeed in text is \n, \r\n or \r
-    counts = txt.count('\n'), txt.count('\r\n'), txt.count('\r')
-    if counts[0]>counts[1]:
-        return 'Unix: \\n'
-    elif counts[2]>counts[1]:
-        return 'Mac: \\r'
-    return 'DOS: \\r\\n'
+def make_patterns(*args):
+    # build patterns for syntax hightlight, depending on Python version
+    global patterns
+    se = dict(python_versions)[python_version.get()]
+    if not os.path.exists(se):
+        tkinter.messagebox.showerror(title="Configuration error",
+            message="Python interpreter %s not found" %se)
+        return
+    script = 'import keyword\nout=open("_patterns.py","w")\n'
+    script += 'out.write("keywords = "+str(keyword.kwlist)+"\\n")\n'
+    script += 'out.write("builtins = %s" %dir(__builtins__))\nout.close()'
+    out = open('build_patterns.py','w')
+    out.write(script)
+    out.close()
+    os.system('%s "%s"' %(se,os.path.join(os.getcwd(),'build_patterns.py')))
+    if not os.getcwd() in sys.path:
+        sys.path.append(os.getcwd())
+    import _patterns,imp
+    imp.reload(_patterns)
+    kw_pattern = '|'.join([ r'\b%s\b' %kw for kw in _patterns.keywords ])
+    builtins_pattern = '|'.join([ r'\b%s\b' %b for b in _patterns.builtins ])
+    patterns['.py'] = [(kw_pattern,'keyword'),(builtins_pattern,'builtin')]
+    patterns['.py']+=[(square_brackets,'square_bracket'),
+        (parenthesis,'parenthesis'),(curly_braces,'curly_brace')]
+    if docs:
+        docs[current_doc].editor.syntax_highlight()
 
-def set_linefeed(txt):
-    """Normalise linefeed"""
-    lf = linefeed.get()
-    # set all linefeeds to \n
-    txt = txt.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
-    if lf == 'Unix: \\n':
-        return txt
-    elif lf == 'Mac: \\r':
-        return txt.replace(b'\n', b'\r')
-    else:
-        return txt.replace(b'\n', b'\r\n')
-    
 def new_module(ext):
     global current_doc
     for widget in panel.winfo_children():
@@ -1108,20 +1062,52 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     save_history(new_doc)
     new_doc.editor.zone.focus()
 
-def ask_module(*args):
-    file_name=askopenfilename(initialdir=default_dir())
-    if file_name:
-        open_module(file_name)
+def py_encoding(head):
+    mo = re.search('(?s)coding[:=]\s*([-\w.]+)',head, re.M)
+    if mo:
+        return mo.groups()[0]
 
-def check_if_changed(confirm=True):
-    if docs[current_doc].editor.zone.get(1.0,'%s-1c' %END) != \
-        docs[current_doc].text:
-        flag = True
-        if confirm:
-            flag = tkinter.messagebox.askquestion("File modified",
-                "File %s changed. Save it ?" %docs[current_doc].file_name)
-        if flag != 'no':
-            save()
+def replace(*args):
+    if docs:
+        Searcher().replace()
+
+def resize(evt):
+    if evt.widget is root:
+        set_fonts()
+        set_sizes()
+
+def run(*args):
+    if not docs or not docs[current_doc].editor.zone.get(1.0,END).strip():
+        return
+    if docs[current_doc].file_name is None:
+        save_as()
+    if not docs[current_doc].file_name.endswith('.py'):
+        tkinter.messagebox.showerror(title="Execution error",
+            message="This is not a Python script")
+        return
+    save() # in case text or encoding changed
+    # check if first line indicates interpreter
+    first_line = docs[current_doc].editor.zone.get(1.0,'1.0lineend')
+    if first_line.startswith("#!"):
+        interp = first_line[2:]
+    else:
+        interp = dict(python_versions)[python_version.get()]
+    if interp.lower().endswith("w.exe"):
+        # On Windows, use python.exe, not pythonw.exe
+        interp = interp[:-5] + interp[-4:]
+    if ' ' in interp:
+        interp = '"%s"'%interp
+    fname = docs[current_doc].file_name
+    if sys.platform=='win32':
+        # use batch file run.bat to run script in another process
+        out = open("run.bat","w")
+        out.write("@echo off\ncd %1%\n{0} %2%\npause\nexit".format(interp))
+        out.close()
+        d_name = os.path.dirname(fname)
+        d_name = d_name.replace('/','\\')
+        os.system('start /D "%s" run "%s" "%s"' %(os.getcwd(),d_name,fname))
+    else:   # XXX untested
+        os.spawnv(os.P_NOWAIT, interp, [interp, '"'+fname+'"'])
 
 def save(*args):
     if not docs:
@@ -1146,6 +1132,46 @@ def save_as():
         res = save_zone()
         doc.editor.syntax_highlight()
         return res
+
+def save_history(doc):
+    file_name = doc.file_name
+    try:
+        history = [os.path.normpath(line.strip())
+            for line in open('history.txt').readlines()
+            if line.strip() and not line.strip() == file_name]+[file_name]
+    except IOError:
+        out = open('history.txt','w')
+        out.write(file_name+'\n')
+        out.close()
+        menuModule.add_separator()
+        menuModule.add_command(label=file_name,
+            command=lambda file_name=file_name:open_module(file_name))
+        return
+    with open('history.txt','w') as out:
+        for line in history[-history_size:]:
+            out.write(os.path.normpath(line)+'\n')
+    # remove entry in menu
+    index = menuModule.index(END)
+    deleted = False
+    while index > 0:
+        if menuModule.type(index) != 'command':
+            break
+        else:
+            label = menuModule.entrycget(index,'label')
+            if label == file_name:
+                menuModule.delete(index)
+                deleted = True
+                break
+            else:
+                index -= 1
+    if not deleted:
+        if menuModule.index(END)>nb_menu_items+history_size:
+            menuModule.delete(nb_menu_items+2) # oldest file in history
+    # add to menu
+    menuModule.add_command(label=file_name,
+        command=lambda file_name=file_name:open_module(file_name))
+    # save last modif time
+    doc.last_modif = os.stat(file_name).st_mtime
 
 def save_zone():
     doc = docs[current_doc]
@@ -1176,77 +1202,106 @@ def save_zone():
     file_browser.mark_if_changed()
     return True
 
-def _close(*args):
-    global current_doc
+def search(*args):
+    if docs:
+        Searcher().search()
+
+def search_in_files(*args):
+    txt = tkinter.simpledialog.askstring(_('search in files'),'search')
+    if txt:
+        pattern = re.sub(r'([$\.()\[\]])',r'\\\1',txt)
+        pattern = r'%s' %pattern
+        top = Toplevel()
+        zone = ScrolledText(top,width=120,height=40)
+        zone.pack()
+        top.title('Recherche dans les fichiers - %s' %default_dir())
+        zone.insert(END,'Chaine : %s\n\n' %txt)
+        for dirpath,dirnames,filenames in os.walk(default_dir()):
+            flag_dir = False
+            if '.hg' in dirnames:
+                dirnames.remove('.hg')
+            for fname in filenames:
+                if fname.endswith('.gz'):
+                    continue
+                flag_file = False
+                full_path = os.path.join(dirpath,fname)
+                src = open(full_path,encoding='iso-8859-1').read()
+                rest = src
+                lines = src.split('\n')
+                pos = 0
+                while True:
+                    mo = re.search(pattern,rest)
+                    if mo:
+                        if not flag_dir:
+                            zone.insert(END,'\n\n'+dirpath)
+                            flag_dir = True
+                        if not flag_file:
+                            zone.insert(END,
+                                '\n   %s\n' %full_path[len(default_dir())+1:]) 
+                            flag_file = True
+                        pos_in_src = pos + mo.start()
+                        lnum = src[:pos_in_src].count('\n')
+                        zone.insert(END,
+                            '\n        line %4s : %s' %(lnum+1,lines[lnum][:100]))
+                        pos += mo.start()+1
+                        rest = rest[mo.start()+1:]
+                    else:
+                        if flag_file:
+                            zone.insert(END,'\n')
+                        break
+
+def set_fonts():
+    global font, l_font, sh_font, browser_font
+
+    root_w, root_h = root.winfo_screenwidth(), int(root.winfo_screenheight()*0.92)
+    
+    fsize = -int(root_w/100)
+    
+    font = Font(family="courier new",size=fsize)
+    lc_font = Font(family="courier new",size=fsize)
+    sh_font = Font(family="courier new",size=int(1.5*fsize), weight="bold")
+    browser_font = Font(family="verdana",size=fsize)
+
+def set_sizes():
+    # file browser covers 15% of width
+    file_browser['width'] = int(0.15*root.winfo_screenwidth()/
+       font.measure('0'))
+
+def set_linefeed(txt):
+    """Normalise linefeed"""
+    lf = linefeed.get()
+    # set all linefeeds to \n
+    txt = txt.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
+    if lf == 'Unix: \\n':
+        return txt
+    elif lf == 'Mac: \\r':
+        return txt.replace(b'\n', b'\r')
+    else:
+        return txt.replace(b'\n', b'\r\n')
+
+def switch(event):
     if not docs:
         return
-    if docs[current_doc].editor.zone.get(1.0,'%s-1c' %END) != \
-        docs[current_doc].text:
-        flag = tkinter.messagebox.askquestion("File modified",
-            "File %s changed. Save it ?" %docs[current_doc].file_name)
-        if flag != 'no':
-            if not save():
-                return
-    docs[current_doc].editor.frame.pack_forget()
-    del docs[current_doc]
-    file_browser.update()
-    if docs:
-        current_doc = len(docs)-1
-        docs[current_doc].editor.frame.pack()
-        root.title('TedPy - {}'.format(docs[current_doc].file_name))
-        file_browser.select(docs[-1])
-        docs[current_doc].editor.zone.focus()
-    else:
-        current_doc = None
-        root.title('TedPy')
-
-def close_window(*args):
-    while docs:
-        current_doc = -1
-        _close()
-    root.destroy()
-
-def make_patterns(*args):
-    # build patterns for syntax hightlight, depending on Python version
-    global patterns
-    se = dict(python_versions)[python_version.get()]
-    if not os.path.exists(se):
-        tkinter.messagebox.showerror(title="Configuration error",
-            message="Python interpreter %s not found" %se)
+    line_num = int(event.widget.index(CURRENT).split('.')[0])-1
+    if not line_num in file_browser.doc_at_line:
         return
-    script = 'import keyword\nout=open("_patterns.py","w")\n'
-    script += 'out.write("keywords = "+str(keyword.kwlist)+"\\n")\n'
-    script += 'out.write("builtins = %s" %dir(__builtins__))\nout.close()'
-    out = open('build_patterns.py','w')
-    out.write(script)
-    out.close()
-    os.system('%s "%s"' %(se,os.path.join(os.getcwd(),'build_patterns.py')))
-    if not os.getcwd() in sys.path:
-        sys.path.append(os.getcwd())
-    import _patterns,imp
-    imp.reload(_patterns)
-    kw_pattern = '|'.join([ r'\b%s\b' %kw for kw in _patterns.keywords ])
-    builtins_pattern = '|'.join([ r'\b%s\b' %b for b in _patterns.builtins ])
-    patterns['.py'] = [(kw_pattern,'keyword'),(builtins_pattern,'builtin')]
-    patterns['.py']+=[(square_brackets,'square_bracket'),
-        (parenthesis,'parenthesis'),(curly_braces,'curly_brace')]
-    if docs:
-        docs[current_doc].editor.syntax_highlight()
+    new_index = docs.index(file_browser.doc_at_line[line_num]) 
+    if new_index==current_doc:
+        return
+    else:
+        switch_to(new_index)
 
-def check_file_change():
-    # check every second if file has been modified by another program
-    if docs and docs[current_doc].has_name:
-        doc = docs[current_doc]
-        if os.path.exists(doc.file_name): # may have been moved or deleted
-            if doc.last_modif != os.stat(doc.file_name).st_mtime:
-                askreload = tkinter.messagebox.askyesno(title=_("File changed"),
-                    message=_("file_change") %doc.file_name)
-                if askreload:
-                    _close()
-                    open_module(doc.file_name)
-                else:
-                    doc.last_modif = os.stat(doc.file_name).st_mtime
-    root.after(1000,check_file_change)
+def switch_to(new_index):
+    global current_doc
+    docs[current_doc].editor.frame.pack_forget()
+    new_doc = docs[new_index]
+    current_doc = new_index
+    docs[current_doc].editor.frame.pack()
+    root.title('TedPy - {}'.format(docs[current_doc].file_name))
+    file_browser.select(new_doc)
+    docs[current_doc].editor.zone.focus()
+    syntax_highlight.set(docs[current_doc].editor.highlight)
+
 
 def update_highlight(*args):
     # update syntax highlighting if option is reset by user
@@ -1306,8 +1361,9 @@ except IOError:
 menubar.add_cascade(menu=menuModule,label=_("file"))
 
 menuEdition=Menu(menubar,tearoff=0)
-menuEdition.add_command(label=_('search'),command=search,accelerator="F5")
-menuEdition.add_command(label=_('search in files'),command=search_in_files,accelerator="F6")
+menuEdition.add_command(label=_('search'), command=search, accelerator="F5")
+menuEdition.add_command(label=_('search in files'), command=search_in_files,
+    accelerator="F6")
 menuEdition.add_command(label=_('replace'),command=replace,accelerator="F8")
 menubar.add_cascade(menu=menuEdition,label=_('edit'))
 
@@ -1335,14 +1391,15 @@ menubar.add_cascade(menu=menuConfig,label=_('config'))
 
 root.config(menu=menubar)
 
-root.bind('<Control-n>',new_module)
-root.bind('<Control-o>',ask_module)
-root.bind('<Control-s>',save)
-root.bind('<Control-r>',run)
-root.bind('<F5>',search)
-root.bind('<F6>',search_in_files)
-root.bind('<F8>',replace)
-root.protocol("WM_DELETE_WINDOW",close_window)
+root.bind('<Control-n>', new_module)
+root.bind('<Control-o>', ask_module)
+root.bind('<Control-s>', save)
+root.bind('<Control-r>', run)
+root.bind('<Configure>', resize)
+root.bind('<F5>', search)
+root.bind('<F6>', search_in_files)
+root.bind('<F8>', replace)
+root.protocol("WM_DELETE_WINDOW", close_window)
 
 class FileBrowser(tkinter.Text):
     # simulate a listbox : with built-in listboxes, selection 
@@ -1393,21 +1450,8 @@ try:
 except:
     root.wm_state(newstate="normal")
 
-root_w, root_h = root.winfo_screenwidth(), int(root.winfo_screenheight()*0.92)
+set_fonts()
 
-fsize = -int(root_w/100)
-
-font = Font(family="courier new",size=fsize)
-lc_font = Font(family="courier new",size=fsize)
-sh_font = Font(family="courier new",size=int(1.5*fsize), weight="bold")
-browser_font = Font(family="verdana",size=fsize)
-curly_font = Font(family="courier new", size=fsize, weight="bold")
-
-def text_width():
-    pix_per_char = font.measure('0') # pixels per character in this font
-    ratio = pix_per_char/font['size']
-    return int(0.83*root_w/pix_per_char)
-    
 file_browser = FileBrowser(root,font=browser_font,height=38,padx=3,pady=3,
     borderwidth=6,relief=GROOVE,cursor='arrow',state=DISABLED,
     foreground='white', bg='#222222')
@@ -1416,15 +1460,14 @@ file_browser.pack(side=LEFT,anchor=NW,expand=YES,fill=Y)
 file_browser.bind('<ButtonRelease>',switch)
 file_browser.bind('<Button-3>',close_dialog)
 
+set_sizes()    
+
 right = Frame(root)
 
 panel = Frame(right)
 panel.pack(expand=YES,fill=BOTH)
 
 right.pack(expand=YES,fill=BOTH)
-
-# file browser covers 15% of width
-file_browser['width'] = int(0.15*root_w/font.measure('0')) 
 
 check_file_change()
 
