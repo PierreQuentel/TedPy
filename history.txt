@@ -1,8 +1,0 @@
-C:\cockpit\20151125\scripts\home.py
-C:\brython\20161121\setup\data\prepare_setup.py
-C:\brython\20161121\setup\brython.py
-C:\brython\20161121\scripts\find_modules.py
-C:\brython\20161121\www\src\Lib\browser\__init__.py
-C:\brython\20161121\setup\find_modules.py
-C:\brython\20161121\setup\data\index.html
-C:\TedPy\20150712\TedPy.py
