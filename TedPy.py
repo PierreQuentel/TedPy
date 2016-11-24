@@ -480,7 +480,7 @@ class Editor(Frame):
     def mark_brace(self, pos):
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
-        if not ext in patterns:
+        if not ext in ['.py', '.js']:
             return
         self.zone.tag_remove('matching_brace', '1.0', END)
         for p in pos, pos+'-1c':
