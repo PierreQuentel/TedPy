@@ -99,6 +99,7 @@ class HTMLParser(html.parser.HTMLParser):
         closing_pos = self.zone.search('>', p0)
         self.zone.tag_add('keyword', p0, closing_pos+'+1c')
 
+
 class EncodingError(Exception):
     pass
 
@@ -402,11 +403,7 @@ class Editor(Frame):
     def html_highlight(self):
         txt = self.zone.get(1.0,END).rstrip()+'\n'
         parser = HTMLParser(self.zone)
-        # while editing there may be parser error, ignore them
-        try:
-            parser.feed(txt)
-        except:
-            pass
+        parser.feed(txt)
                 
     def click(self,event):
         self.zone.tag_remove('selection',1.0,END)
@@ -606,7 +603,7 @@ class Editor(Frame):
         self.zone.mark_set(INSERT,'%slinestart+%sc'
              %(self.zone.index(INSERT),nbspaces))
         return 'break'
-
+        
     def right_click(self,event):
         ext = os.path.splitext(docs[current_doc].file_name)[1]
         if ext == '.py':
@@ -625,8 +622,7 @@ class Editor(Frame):
                     if line.lstrip().startswith(kw+' '):
                         label, num = line[:line.find('(')],i+1
                         targets.append((label, num))
-            browser = Menu(root, tearoff=0, relief=FLAT, 
-                background="#d0d7e2")
+            browser = Menu(root, tearoff=0, relief=FLAT, background="#d0d7e2")
             for label, num in targets:
                 browser.add_radiobutton(label=label, variable=target,
                     value=num, command=self.goto)
@@ -648,7 +644,8 @@ class Editor(Frame):
                 stopindex=current+'lineend') or current+'lineend'
             word = self.zone.get(start,end)
             kwp = '|'.join(kws)
-            pos = self.zone.search(r'^ *(%s)\s+%s' %(kwp,word),1.0,regexp=True)
+            pos = self.zone.search(r'^ *(%s)\s+%s' %(kwp,word), 1.0,
+                regexp=True)
             # menu to reach a class, method or function
             if pos:
                 label = self.zone.get(pos,pos+'lineend')
@@ -849,8 +846,9 @@ def check_file_change():
         doc = docs[current_doc]
         if os.path.exists(doc.file_name): # may have been moved or deleted
             if doc.last_modif != os.stat(doc.file_name).st_mtime:
-                askreload = tkinter.messagebox.askyesno(title=_("File changed"),
-                    message=_("file_change") %doc.file_name)
+                askreload = tkinter.messagebox.askyesno(
+                    title=_("File changed"),
+                    message=_("file_change %s") %doc.file_name)
                 if askreload:
                     _close()
                     open_module(doc.file_name)
@@ -1016,7 +1014,8 @@ def open_module(file_name,force_reload=False,force_encoding=None):
         txt = open(file_name,'r',encoding=file_encoding,newline='').read()
         txt = txt.replace('\t',' '*spaces_per_tab.get())
         linefeed.set(guess_linefeed(txt))
-        # internally use \n, otherwise tkinter adds an extra whitespace each line
+        # internally use \n, otherwise tkinter adds an extra whitespace 
+        # for each line
         txt = txt.replace('\r\n', '\n') 
     except UnicodeDecodeError: # try another encoding
         new_enc = EncodingChooser(_("Encoding error"),
@@ -1079,6 +1078,9 @@ def resize(evt):
     if evt.widget is root:
         set_fonts()
         set_sizes()
+        if docs:
+            editor = docs[current_doc].editor
+            editor.zone.config(width=editor.text_width()-3)
 
 def run(*args):
     if not docs or not docs[current_doc].editor.zone.get(1.0,END).strip():
@@ -1241,12 +1243,12 @@ def search_in_files(*args):
                             flag_dir = True
                         if not flag_file:
                             zone.insert(END,
-                                '\n   %s\n' %full_path[len(default_dir())+1:]) 
+                                '\n   %s\n' %full_path[len(default_dir())+1:])
                             flag_file = True
                         pos_in_src = pos + mo.start()
                         lnum = src[:pos_in_src].count('\n')
-                        zone.insert(END,
-                            '\n        line %4s : %s' %(lnum+1,lines[lnum][:100]))
+                        zone.insert(END, '\n        line %4s : %s' 
+                            %(lnum+1,lines[lnum][:100]))
                         pos += mo.start()+1
                         rest = rest[mo.start()+1:]
                     else:
@@ -1255,15 +1257,15 @@ def search_in_files(*args):
                         break
 
 def set_fonts():
-    global font, l_font, sh_font, browser_font
+    global font, sh_font, browser_font
 
-    root_w, root_h = root.winfo_screenwidth(), int(root.winfo_screenheight()*0.92)
+    root_w = root.winfo_screenwidth()
     
-    fsize = -int(root_w/100)
+    fsize = -int(root_w/85)
     
-    font = Font(family="courier new",size=fsize)
-    lc_font = Font(family="courier new",size=fsize)
-    sh_font = Font(family="courier new",size=int(1.5*fsize), weight="bold")
+    family = "Consolas"
+    font = Font(family=family, size=fsize)
+    sh_font = Font(family=family, size=int(1.5*fsize), weight="bold")
     browser_font = Font(family="verdana",size=fsize)
 
 def set_sizes():
@@ -1334,17 +1336,18 @@ syntax_highlight.trace('w', update_highlight)
 
 menubar=Menu(root)
 
-menuModule=Menu(menubar,tearoff=0)
-menu_new = Menu(menuModule,tearoff=0)
+menuModule=Menu(menubar, tearoff=0)
+menu_new = Menu(menuModule, tearoff=0)
 for label, ext in [('Python (.py)', 'py'), ('Javascript (.js)', 'js'),
     ('HTML (.html)', 'html'), ('Text (.txt)', 'txt')]:
     menu_new.add_command(label=label, command=lambda x=ext:new_module(x))
-menuModule.add_cascade(menu=menu_new,label=_('new'))
-menuModule.add_command(label=_('open'),accelerator="Ctrl+O",command=ask_module)
-menuModule.add_command(label=_('save as')+"...",command=save_as)
-menuModule.add_command(label=_('save'),accelerator='Ctrl+S',command=save)
-menuModule.add_command(label=_('close'),command=close_window)
-menuModule.add_command(label=_('run'),accelerator="Ctrl+R",command=run)
+menuModule.add_cascade(menu=menu_new, label=_('new'))
+menuModule.add_command(label=_('open'), accelerator="Ctrl+O",
+    command=ask_module)
+menuModule.add_command(label=_('save as')+"...", command=save_as)
+menuModule.add_command(label=_('save'), accelerator='Ctrl+S', command=save)
+menuModule.add_command(label=_('close'), command=close_window)
+menuModule.add_command(label=_('run'), accelerator="Ctrl+R", command=run)
 nb_menu_items = menuModule.index(END)
 
 # history of open files
