@@ -26,7 +26,7 @@
     "encoding_err_msg": "Le fichier ne peut pas être encodé en %%s\nEssayer avec un autre encodage :",
     "not encoding": "Le fichier n'est pas encodé en %%s",
     "cannot encode": "Le fichier ne peut pas être encodé en %%s",
-    "file_change": "Le fichier %%s a été modifié.\nLe recharger ?",
+    "file_change %s": "Le fichier %%s a été modifié.\nLe recharger ?",
     "opening_file": "Ouverture de fichier",
     "already_open_err_msg": "Le fichier est déjà ouvert",
     "File not found": "Fichier non trouvé",

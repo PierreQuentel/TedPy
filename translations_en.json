@@ -26,7 +26,7 @@
     "encoding_err_msg": "The file cannot be encoded in %%s\nTry with another encoding :",
     "not encoding": "The file is not encoded in %%s",
     "cannot encode": "The file cannot be encoded in %%s",
-    "file_change": "File %%s was modified.\nReload ?",
+    "file_change %s": "File %%s was modified.\nReload ?",
     "opening_file": "Open file",
     "already_open_err_msg": "The file is already open",
     "File not found": "File not found",
