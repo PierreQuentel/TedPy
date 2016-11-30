@@ -36,6 +36,8 @@ if ini.has_section('encodings'):
         if not encoding in encodings:
             encodings.append(encoding)
 
+colors = {k: ini.get('colors', k) for k in ini.options('colors')}
+
 # parameters
 history_size = 8 # number of files in history
 wheel_coeff = 2 # increase wheel scrolling
@@ -103,6 +105,7 @@ class HTMLParser(html.parser.HTMLParser):
 class EncodingError(Exception):
     pass
 
+
 class Document:
 
     def __init__(self, file_name, ext=None, text=""):
@@ -119,6 +122,7 @@ class Document:
         self.file_name = os.path.normpath(file_name)
         self.text = text
 
+
 class EncodingChooser(tkinter.simpledialog._QueryDialog):
 
     def body(self,master):
@@ -126,16 +130,17 @@ class EncodingChooser(tkinter.simpledialog._QueryDialog):
         w.grid(row=0, padx=5, sticky=W)
         for i,enc in enumerate(enc for enc in encodings 
             if enc != self.initialvalue.get()):
-            Radiobutton(master,text=enc,variable=self.initialvalue,
-                value=enc,padx=15).grid(row=1+i,sticky=W)
+            Radiobutton(master, text=enc, variable=self.initialvalue,
+                value=enc, padx=15).grid(row=1+i, sticky=W)
 
     def getresult(self):
         return self.initialvalue.get()
     
+
 class Editor(Frame):
 
     def __init__(self):
-        frame = Frame(panel,relief=GROOVE,borderwidth=4)
+        frame = Frame(panel, relief=GROOVE, borderwidth=4)
         
         bar_bg = '#666'
         self.font = font
@@ -178,18 +183,18 @@ class Editor(Frame):
             fg="#fff").pack(side=RIGHT)
         
         shortcuts.pack(fill=BOTH)
-        bg = '#222222' # background colour
+        bg = colors['bg']
         
         zone = ScrolledText(frame, width=self.text_width()-3,
             font=self.font, wrap=NONE, relief=FLAT, undo=True,
-            autoseparators=True, bg=bg, foreground='white',
-            insertbackground="white", selectbackground='#A60')
+            autoseparators=True, bg=bg, foreground=colors['color'],
+            insertbackground="white", selectbackground=colors['select'])
         zone.vbar.config(command=self.slide)
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
         text_height = int(int(root.winfo_screenheight()*0.92)/line_height)
         zone['height'] = text_height
         
-        hbar = Scrollbar(frame, name='hbar', orient=HORIZONTAL, bg="red")
+        hbar = Scrollbar(frame, name='hbar', orient=HORIZONTAL)
         hbar.pack(side=BOTTOM, fill=BOTH, expand=YES)
         hbar['command'] = zone.xview
         zone['xscrollcommand'] = hbar.set
@@ -206,8 +211,6 @@ class Editor(Frame):
         zone.bind('<Shift-Tab>', self.remove_tab)
         zone.bind('<Return>', self.insert_cr)
         zone.bind('<Button-1>', self.click)
-        zone.bind('<Leave>', self.leave)
-        zone.bind('<Enter>', self.enter)
         zone.bind('<ButtonRelease-1>', self.button_release)
         zone.bind('<Button-3>', self.right_click)
         zone.bind('<Control-KeyRelease-v>', self.paste)
@@ -215,24 +218,16 @@ class Editor(Frame):
         zone.bind('<Configure>', self.print_line_nums)
         zone.bind('<Home>', self.home)
 
-        zone.tag_config('comment', foreground="#6A6")
-        zone.tag_config('string', foreground="#60A0A0")
-        zone.tag_config('keyword', foreground="#9999FF")
-        zone.tag_config('builtin', foreground="#00FF00")
-        zone.tag_config('balise', foreground="#F00080")
-        zone.tag_config('parenthesis', foreground="#FF60FF")
-        zone.tag_config('curly_brace', foreground="#FF0000")
-        zone.tag_config('square_bracket', foreground="#338800")
+        for tag in ('comment', 'string', 'keyword', 'builtin', 'parenthesis',
+            'curly_brace', 'square_bracket', 'too_long'):
+            zone.tag_config(tag, foreground=colors[tag])
                 
-        zone.tag_config('found', foreground=bg, background="white")
+        zone.tag_config('found', foreground=colors['bg'], background="white")
         zone.tag_config('selection', background=zone['selectbackground'])
-        zone.tag_config('too_long', background="#666666")
         zone.tag_config('matching_brace', background="#444", 
             foreground="#ff6")
         zone.tag_config('lone_brace', underline=1)
 
-        zone.tag_bind(SEL,'<Enter>',self.enter_sel)
-        
         zone.pack(expand=YES, fill=BOTH)
 
         self.zone = zone
@@ -240,25 +235,11 @@ class Editor(Frame):
         self.line_nums = line_nums
         self.shift = False
         self.control = False
-        self.click_on_sel = False
         self.last_update = None
 
-    def ix2pos(self, ix):
-        return [int(x) for x in self.zone.index(ix).split('.')]
-        
-    def set_encoding(self,event):
-        self.prev_enc = self.encoding.get()
-        menu = Menu(self.zone,tearoff=False)
-        for encoding in encodings:
-            menu.add_radiobutton(label=encoding,variable=self.encoding,
-                command=self.change_encoding)
-        menu.post(event.x_root,event.y_root)
-
-    def set_spaces_per_tab(self, event):
-        menu = Menu(self.zone, tearoff=False)
-        for value in [2, 4]:
-            menu.add_radiobutton(label=value, variable=self.spaces_per_tab)
-        menu.post(event.x_root,event.y_root)
+    def button_release(self, event):
+        self.zone['cursor'] = 'xterm'
+        self.update_line_col()
 
     def change_encoding(self):
         new_enc = self.encoding.get()
@@ -269,6 +250,148 @@ class Editor(Frame):
         except:
             tkinter.messagebox.showinfo(title=_('Encoding error'),
                 message=_('not encoding') %self.prev_enc)
+
+    def change_size(self, ev):
+        """Called when clicking on button ↑ or ↓"""
+        up = ev.widget.cget('text') == '↑'
+        previous = self.font.cget('size')
+        if up:
+            self.font.config(size=previous-1)
+        else:
+            self.font.config(size=previous+1)
+        self.zone.config(width=self.text_width()-3)
+
+    def change_wrap(self,*args):
+        if self.zone['wrap'] == NONE:
+            self.zone.config(wrap=WORD)
+        else:
+            self.zone.config(wrap=NONE)
+        self.print_line_nums()
+
+    def click(self,event):
+        self.zone.tag_remove('selection',1.0,END)
+        self.zone.tag_remove('found',1.0,END)
+        self.mark_brace(CURRENT)
+        # if there is a menu with all functions and classes, unpost it
+        if hasattr(self, 'browser'):
+            self.browser.unpost()
+            delattr(self, 'browser')
+
+    def delayed_sh(self):
+        # delayed syntax highlighting, launched by a timer
+        if docs and self.do_delayed:
+            self.syntax_highlight()
+
+    def goto(self, *args):
+        line_num = target.get()
+        self.zone.focus()
+        self.zone.mark_set(INSERT,'%s.0' %line_num)
+        self.zone.see(INSERT)
+        self.print_line_nums()
+
+    def home(self,event):
+        """Home key : go to start of line, after the indentation"""
+        left = self.zone.get('%slinestart' %self.zone.index(INSERT),INSERT)
+        if not left.strip(): # only spaces at the left of INSERT
+            return
+        nbspaces = len(left)-len(left.lstrip())
+        self.zone.mark_set(INSERT,'%slinestart+%sc'
+             %(self.zone.index(INSERT),nbspaces))
+        return 'break'
+        
+    def html_highlight(self):
+        txt = self.zone.get(1.0,END).rstrip()+'\n'
+        parser = HTMLParser(self.zone)
+        parser.feed(txt)
+                
+    def insert_cr(self,event):
+        """Handle Enter key"""
+        selected = self.zone.tag_ranges(SEL)
+        if selected: # remove selection
+            start,end = selected
+            self.zone.delete(*selected)
+            if self.zone.index(end).endswith('.0'):
+                self.zone.delete(start)
+        pos = self.zone.index(INSERT)
+        start = self.zone.index('%slinestart' %pos)
+        txt = self.zone.get(start,pos)
+        indent = len(txt)-len(txt.lstrip())
+        # for a Python script, if line ends with ':', add indent
+        file_name = docs[current_doc].file_name
+        ext = os.path.splitext(file_name)[1]
+        if ext == '.py' and txt.endswith(':'):
+            self.zone.insert(INSERT,'\n'+
+                (indent+self.spaces_per_tab.get())*' ')
+        else:
+            self.zone.insert(INSERT,'\n'+indent*' ')
+        self.print_line_nums()
+        return 'break'
+
+    def insert_tab(self,event): 
+        """Replace tabs by a number of spaces"""
+        sel = self.zone.tag_ranges(SEL)
+        if not sel:
+            self.zone.insert(INSERT,' '*self.spaces_per_tab.get())
+        else:
+            first_line,last_line = [int(self.zone.index(x).split('.')[0]) 
+                for x in sel]
+            if self.zone.index(sel[1]).endswith('.0'):
+                last_line -= 1
+            for line in range(first_line,last_line+1):
+                self.zone.insert(float(line),' '*self.spaces_per_tab.get())
+        return 'break'
+
+    def ix2pos(self, ix):
+        return [int(x) for x in self.zone.index(ix).split('.')]
+        
+    def key_pressed(self,event):
+        if event.keysym in ['Shift_R','Shift_L']:
+            self.shift = True
+        elif event.keysym in ['Control_L','Control_R']:
+            self.control = True
+
+    def mark_brace(self, pos):
+        file_name = docs[current_doc].file_name
+        ext = os.path.splitext(file_name)[1]
+        if not ext in ['.py', '.js']:
+            return
+        self.zone.tag_remove('matching_brace', '1.0', END)
+        for p in pos, pos+'-1c':
+            if "string" in self.zone.tag_names(p):
+                continue
+            car = self.zone.get(self.zone.index(p))
+            if car in '([{':
+                # opening brace : look for closing (after)
+                match, start, nb = ')]}'['([{'.index(car)], p, 1
+                incr, comp, end_pos = "+1c", '>=', END
+            elif car in '}])':
+                # closing brace : look for opening (before)
+                match, start, nb = '([{'[')]}'.index(car)], p, 1
+                incr, comp, end_pos = "-1c", '<=', '1.0'
+            else:
+                continue
+            while True:
+                p = self.zone.index(p+incr)
+                if self.zone.compare(p, comp, end_pos):
+                    self.zone.tag_add('lone_brace', start)
+                    break
+                elif 'string' in self.zone.tag_names(p):
+                    continue
+                else:
+                    c = self.zone.get(p)
+                    if c == car:
+                        nb += 1
+                    elif c == match:
+                        nb -= 1
+                        if nb == 0:
+                            self.zone.tag_add('matching_brace', start)
+                            self.zone.tag_add('matching_brace', p)
+                            return
+        
+    def paste(self,event):
+        self.syntax_highlight()
+        self.print_line_nums()
+        return 'break'
 
     def print_line_nums(self,*args):
         w_height = int(self.zone.winfo_geometry().split('+')[0].split('x')[0])
@@ -282,7 +405,7 @@ class Editor(Frame):
                 lines.append((x,bbox))
             elif lines:
                 break
-        self.first_visible,self.last_visible = lines[0][0],lines[-1][0]
+        self.first_visible, self.last_visible = lines[0][0], lines[-1][0]
         self.line_nums.config(state=NORMAL)
         self.line_nums.delete(1.0,END)
         self.line_nums['width'] = 1+len(str(nb_lignes+1))
@@ -291,26 +414,124 @@ class Editor(Frame):
         char_height = self.line_nums.bbox('1.0')[3] # line height in pixels
         for line_num,bbox in lines:
             nb = (bbox[1]-offset)/char_height
-            self.line_nums.insert(END,'\n'*int(nb-1)) # empty lines
-            self.line_nums.insert(END,(_format.format(line_num))+'\n')
+            self.line_nums.insert(END, '\n'*int(nb-1)) # empty lines
+            self.line_nums.insert(END, (_format.format(line_num))+'\n')
             offset = bbox[1]
         last_line_height = (w_height-lines[-1][1][1])/char_height
-        self.line_nums.insert(END,'\n'*int(last_line_height-1))
-        self.line_nums.insert(END,'\n'*10) # to be able to move vertically
+        self.line_nums.insert(END, '\n'*int(last_line_height-1))
+        self.line_nums.insert(END, '\n'*10) # to be able to move vertically
         # compute line nums offset to be aligned with text
-        nb_line_nums = int(self.line_nums.index(END).split('.')[0])
+        nb_line_nums = self.ix2pos(END)[0]
         line_nums_height = char_height*nb_line_nums
         first_line_num_offset = self.line_nums.bbox('1.0')[1]
         move = (first_line_num_offset-first_offset)/line_nums_height
         self.line_nums.yview(MOVETO,move)
         self.line_nums.config(state=DISABLED)
 
-    def delayed_sh(self):
-        # delayed syntax highlighting, launched by a timer
-        if docs and self.do_delayed:
-            self.syntax_highlight(True)
+    def redo(self,*args):
+        try:
+            self.zone.edit_redo()
+            self.syntax_highlight()
+        except:
+            pass
 
-    def syntax_highlight(self,delayed=False,first=False):
+    def remove_tab(self,event):
+        """Shift selected zone to the left by the number of spaces specified
+        in spaces_per_tab
+        """
+        sel = self.zone.tag_ranges(SEL)
+        if not sel:
+            nb = self.spaces_per_tab.get()
+            while nb and self.zone.get(INSERT)==' ':
+                self.zone.delete(INSERT)
+                nb -=1
+        else:
+            first_line,last_line = [int(self.zone.index(x).split('.')[0]) 
+                for x in sel]
+            if self.zone.index(sel[1]).endswith('.0'):
+                last_line -= 1
+            for line in range(first_line,last_line+1):
+                nb = self.spaces_per_tab.get()
+                while nb and self.zone.get(float(line))==' ':
+                    self.zone.delete(float(line))
+                    nb -=1
+        return 'break'
+
+    def right_click(self,event):
+        ext = os.path.splitext(docs[current_doc].file_name)[1]
+        if ext == '.py':
+            kws = ['def', 'class']
+        elif ext == '.js':
+            kws = ['function']
+        else:
+            return
+        current = self.zone.index(CURRENT)
+        if current == self.zone.index(current+'lineend'):
+            # menu to reach all functions, classes and methods in the script
+            targets = []
+            lines = [x.rstrip() for x in self.zone.get(1.0,END).split('\n')]
+            for i,line in enumerate(lines):
+                for kw in kws:
+                    if line.lstrip().startswith(kw+' '):
+                        label, num = line[:line.find('(')],i+1
+                        targets.append((label, num))
+            browser = Menu(root, tearoff=0, relief=FLAT, background="#d0d7e2")
+            for label, num in targets:
+                browser.add_radiobutton(label=label, variable=target,
+                    value=num, command=self.goto)
+                target.set(None) # to deselect the button
+            browser.yposition(10)
+            browser.post(event.x_root,event.y_root)
+            self.browser = browser
+        else:
+            if not self.zone.get(current+'linestart',current).strip():
+                return # click on indentation
+            if set(self.zone.tag_names(current)) & \
+                set(['string','comment','keyword','def_class']):
+                return
+            start = self.zone.search(r'[^\w]', CURRENT, backwards=True,
+                stopindex=current+'linestart', regexp=True) \
+                or current+'linestart'
+            if start != current+'linestart':
+                start = start+'+1c'
+            end = self.zone.search(r'\M', CURRENT, regexp=True,
+                stopindex=current+'lineend') or current+'lineend'
+            word = self.zone.get(start, end)
+            kwp = '|'.join(kws)
+            pos = self.zone.search(r'^ *(%s)\s+%s' %(kwp, word), 1.0,
+                regexp=True)
+            # menu to reach a class, method or function
+            if pos:
+                label = self.zone.get(pos,pos+'lineend')
+                num = int(pos.split('.')[0])
+                browser = Menu(root,tearoff=0,relief=FLAT,
+                    background=colors['right_click_menu'])
+                browser.add_radiobutton(label=label, variable=target,
+                    value=num, command=self.goto)
+                browser.post(event.x_root, event.y_root+5)
+
+    def set_control(self,event):
+        self.control = True
+
+    def set_encoding(self,event):
+        self.prev_enc = self.encoding.get()
+        menu = Menu(self.zone,tearoff=False)
+        for encoding in encodings:
+            menu.add_radiobutton(label=encoding,variable=self.encoding,
+                command=self.change_encoding)
+        menu.post(event.x_root,event.y_root)
+
+    def set_spaces_per_tab(self, event):
+        menu = Menu(self.zone, tearoff=False)
+        for value in [2, 4]:
+            menu.add_radiobutton(label=value, variable=self.spaces_per_tab)
+        menu.post(event.x_root, event.y_root)
+
+    def slide(self,*args):
+        self.zone.yview(*args)
+        self.print_line_nums()
+
+    def syntax_highlight(self):
         t0 = time.time()
         file_browser.mark_if_changed()
         self.highlight = syntax_highlight.get()
@@ -339,7 +560,8 @@ class Editor(Frame):
             self.do_delayed = True
             # set a timer that will do a syntax highlight later
             # if nothing was entered in the meantime
-            self.zone.after(int(1000*self.last_highlight_time), self.delayed_sh)
+            self.zone.after(int(1000*self.last_highlight_time), 
+                self.delayed_sh)
             return
         self.do_delayed = False
         txt = self.zone.get(1.0,END).rstrip()+'\n'
@@ -400,61 +622,16 @@ class Editor(Frame):
         self.last_update = time.time()
         self.last_highlight_time = self.last_update-t0
 
-    def html_highlight(self):
-        txt = self.zone.get(1.0,END).rstrip()+'\n'
-        parser = HTMLParser(self.zone)
-        parser.feed(txt)
-                
-    def click(self,event):
-        self.zone.tag_remove('selection',1.0,END)
-        self.zone.tag_remove('found',1.0,END)
-        self.mark_brace(CURRENT)
-        # if there is a menu with all functions and classes, unpost it
-        if hasattr(self, 'browser'):
-            self.browser.unpost()
-            delattr(self, 'browser')
-        # if click on a selected zone, mark possible drag and drop start
-        if SEL in self.zone.tag_names(CURRENT):
-            start,end = self.zone.tag_ranges(SEL)
-            if self.zone.index(end)==self.zone.index(END) \
-                and self.zone.index(start)=='1.0':
-                    return
-            self.click_on_sel = True
-            self.zone['cursor'] = "arrow"
-            self.selected_text = self.zone.get(*self.zone.tag_ranges(SEL))
-            return 'break'
-            
-    def enter_sel(self,*args):
-        self.zone['cursor']='arrow'
+    def text_width(self):
+        pix_per_char = self.font.measure('0') # pixels per char in this font
+        return int(0.83*root.winfo_screenwidth()/pix_per_char)
 
-    def leave(self,event):
-        if self.click_on_sel:
-            return 'break'
-
-    def enter(self,event):
-        if self.click_on_sel:
-            return 'break'
-
-    def button_release(self,event):
-        if self.click_on_sel:
-            if not SEL in self.zone.tag_names(CURRENT):
-                self.zone.insert(CURRENT,self.selected_text)
-                self.zone.delete(*self.zone.tag_ranges(SEL))
-            self.zone.tag_remove(SEL,1.0,END)
-        self.click_on_sel = False
-        self.zone['cursor'] = 'xterm'
-        self.update_line_col()
-                        
-    def update_line_col(self,*args):
-        self.current_line,column = map(int,self.zone.index(INSERT).split('.'))
-        self.label_line['text'] = str(self.current_line)
-        self.label_column['text'] = str(column+1)
-
-    def key_pressed(self,event):
-        if event.keysym in ['Shift_R','Shift_L']:
-            self.shift = True
-        elif event.keysym in ['Control_L','Control_R']:
-            self.control = True
+    def undo(self,*args):
+        try:
+            self.zone.edit_undo()
+            self.syntax_highlight()
+        except:
+            pass
 
     def update(self,event):
         if event.keysym == 'Tab':
@@ -482,226 +659,20 @@ class Editor(Frame):
                 or self.current_line > self.last_visible:
                 self.print_line_nums()
 
-    def mark_brace(self, pos):
-        file_name = docs[current_doc].file_name
-        ext = os.path.splitext(file_name)[1]
-        if not ext in ['.py', '.js']:
-            return
-        self.zone.tag_remove('matching_brace', '1.0', END)
-        for p in pos, pos+'-1c':
-            if "string" in self.zone.tag_names(p):
-                continue
-            car = self.zone.get(self.zone.index(p))
-            if car in '([{':
-                # opening brace : look for closing (after)
-                match, start, nb = ')]}'['([{'.index(car)], p, 1
-                incr, comp, end_pos = "+1c", '>=', END
-            elif car in '}])':
-                # closing brace : look for opening (before)
-                match, start, nb = '([{'[')]}'.index(car)], p, 1
-                incr, comp, end_pos = "-1c", '<=', '1.0'
-            else:
-                continue
-            while True:
-                p = self.zone.index(p+incr)
-                if self.zone.compare(p, comp, end_pos):
-                    self.zone.tag_add('lone_brace', start)
-                    break
-                elif 'string' in self.zone.tag_names(p):
-                    continue
-                else:
-                    c = self.zone.get(p)
-                    if c == car:
-                        nb += 1
-                    elif c == match:
-                        nb -= 1
-                        if nb == 0:
-                            self.zone.tag_add('matching_brace', start)
-                            self.zone.tag_add('matching_brace', p)
-                            return
-        
+    def update_line_col(self,*args):
+        self.current_line,column = map(int,self.zone.index(INSERT).split('.'))
+        self.label_line['text'] = str(self.current_line)
+        self.label_column['text'] = str(column+1)
+
     def wheel(self,event):
         global wheel_delta
         if event.delta != 0:
             if wheel_delta is None or abs(event.delta)<wheel_delta:
                 wheel_delta = abs(event.delta)/ wheel_coeff
             delta = -event.delta / wheel_delta
-            self.slide('scroll',int(delta),'units')
+            self.slide('scroll', int(delta), 'units')
         return "break" # don't propagate
 
-    def slide(self,*args):
-        self.zone.yview(*args)
-        self.print_line_nums()
-
-    def insert_tab(self,event): # replace tabs by 4 spaces
-        sel = self.zone.tag_ranges(SEL)
-        if not sel:
-            self.zone.insert(INSERT,' '*self.spaces_per_tab.get())
-        else:
-            first_line,last_line = [int(self.zone.index(x).split('.')[0]) 
-                for x in sel]
-            if self.zone.index(sel[1]).endswith('.0'):
-                last_line -= 1
-            for line in range(first_line,last_line+1):
-                self.zone.insert(float(line),' '*self.spaces_per_tab.get())
-        return 'break'
-
-    def remove_tab(self,event):
-        """Shift selected zone to the left by the number of spaces specified
-        in spaces_per_tab
-        """
-        sel = self.zone.tag_ranges(SEL)
-        if not sel:
-            nb = self.spaces_per_tab.get()
-            while nb and self.zone.get(INSERT)==' ':
-                self.zone.delete(INSERT)
-                nb -=1
-        else:
-            first_line,last_line = [int(self.zone.index(x).split('.')[0]) 
-                for x in sel]
-            if self.zone.index(sel[1]).endswith('.0'):
-                last_line -= 1
-            for line in range(first_line,last_line+1):
-                nb = self.spaces_per_tab.get()
-                while nb and self.zone.get(float(line))==' ':
-                    self.zone.delete(float(line))
-                    nb -=1
-        return 'break'
-
-    def insert_cr(self,event): # autoindent
-        selected = self.zone.tag_ranges(SEL)
-        if selected: # remove selection
-            start,end = selected
-            self.zone.delete(*selected)
-            if self.zone.index(end).endswith('.0'):
-                self.zone.delete(start)
-        pos = self.zone.index(INSERT)
-        start = self.zone.index('%slinestart' %pos)
-        txt = self.zone.get(start,pos)
-        indent = len(txt)-len(txt.lstrip())
-        # if the file is a Python script and line ends with ':', add indent
-        file_name = docs[current_doc].file_name
-        ext = os.path.splitext(file_name)[1]
-        if ext == '.py' and txt.endswith(':'):
-            self.zone.insert(INSERT,'\n'+
-                (indent+self.spaces_per_tab.get())*' ')
-        else:
-            self.zone.insert(INSERT,'\n'+indent*' ')
-        self.print_line_nums()
-        return 'break'
-
-    def paste(self,event):
-        self.syntax_highlight()
-        self.print_line_nums()
-        return 'break'
-
-    def set_control(self,event):
-        self.control = True
-
-    def home(self,event):
-        # go to start of line, after the indentation
-        left = self.zone.get('%slinestart' %self.zone.index(INSERT),INSERT)
-        if not left.strip(): # only spaces at the left of INSERT
-            return
-        nbspaces = len(left)-len(left.lstrip())
-        self.zone.mark_set(INSERT,'%slinestart+%sc'
-             %(self.zone.index(INSERT),nbspaces))
-        return 'break'
-        
-    def right_click(self,event):
-        ext = os.path.splitext(docs[current_doc].file_name)[1]
-        if ext == '.py':
-            kws = ['def', 'class']
-        elif ext == '.js':
-            kws = ['function']
-        else:
-            return
-        current = self.zone.index(CURRENT)
-        if current == self.zone.index(current+'lineend'):
-            # menu to reach all functions, classes and methods in the script
-            targets = []
-            lines = [x.rstrip() for x in self.zone.get(1.0,END).split('\n')]
-            for i,line in enumerate(lines):
-                for kw in kws:
-                    if line.lstrip().startswith(kw+' '):
-                        label, num = line[:line.find('(')],i+1
-                        targets.append((label, num))
-            browser = Menu(root, tearoff=0, relief=FLAT, background="#d0d7e2")
-            for label, num in targets:
-                browser.add_radiobutton(label=label, variable=target,
-                    value=num, command=self.goto)
-                target.set(None) # to deselect the button
-            browser.yposition(10)
-            browser.post(event.x_root,event.y_root)
-            self.browser = browser
-        else:
-            if not self.zone.get(current+'linestart',current).strip():
-                return # click on indentation
-            if set(self.zone.tag_names(current)) & \
-                set(['string','comment','keyword','def_class']):
-                return
-            start = self.zone.search(r'[^\w]',CURRENT,backwards=True,
-                stopindex=current+'linestart',regexp=True) \
-                or current+'linestart'
-            if start != current+'linestart':
-                start = start+'+1c'
-            end = self.zone.search(r'\M',CURRENT,regexp=True,
-                stopindex=current+'lineend') or current+'lineend'
-            word = self.zone.get(start,end)
-            kwp = '|'.join(kws)
-            pos = self.zone.search(r'^ *(%s)\s+%s' %(kwp,word), 1.0,
-                regexp=True)
-            # menu to reach a class, method or function
-            if pos:
-                label = self.zone.get(pos,pos+'lineend')
-                num = int(pos.split('.')[0])
-                browser = Menu(root,tearoff=0,relief=FLAT,
-                    background="#d0d7e2")
-                browser.add_radiobutton(label=label,variable=target,
-                    value=num,command=self.goto)
-                browser.post(event.x_root,event.y_root+5)
-
-    def goto(self,*args):
-        line_num = target.get()
-        self.zone.focus()
-        self.zone.mark_set(INSERT,'%s.0' %line_num)
-        self.zone.see(INSERT)
-        self.print_line_nums()
-
-    def undo(self,*args):
-        try:
-            self.zone.edit_undo()
-            self.syntax_highlight()
-        except:
-            pass
-
-    def redo(self,*args):
-        try:
-            self.zone.edit_redo()
-            self.syntax_highlight()
-        except:
-            pass
-
-    def change_wrap(self,*args):
-        if self.zone['wrap'] == NONE:
-            self.zone.config(wrap=WORD)
-        else:
-            self.zone.config(wrap=NONE)
-        self.print_line_nums()
-
-    def change_size(self, ev):
-        """Called when clicking on button ↑ or ↓"""
-        up = ev.widget.cget('text') == '↑'
-        previous = self.font.cget('size')
-        if up:
-            self.font.config(size=previous-1)
-        else:
-            self.font.config(size=previous+1)
-        self.zone.config(width=self.text_width()-3)
-
-    def text_width(self):
-        pix_per_char = self.font.measure('0') # pixels per char in this font
-        return int(0.83*root.winfo_screenwidth()/pix_per_char)
 
 class Searcher:
 
@@ -1062,7 +1033,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     current_doc = docs.index(new_doc)
     file_browser.select(new_doc)
     editor.zone.mark_set(INSERT,1.0)
-    editor.syntax_highlight(first=True)
+    editor.syntax_highlight()
     editor.zone.edit_reset()
     editor.frame.pack(expand=YES,fill=BOTH)
     # wait to print lines, otherwise bbox only works for first line
@@ -1266,7 +1237,7 @@ def set_fonts():
 
     root_w = root.winfo_screenwidth()
     
-    fsize = -int(root_w/85)
+    fsize = -int(root_w/100)
     
     family = "Consolas"
     font = Font(family=family, size=fsize)
@@ -1275,8 +1246,9 @@ def set_fonts():
 
 def set_sizes():
     # file browser covers 15% of width
-    file_browser['width'] = int(0.15*root.winfo_screenwidth()/
-       font.measure('0'))
+    w, h = [int(x) for x in root.geometry().split('+')[0].split('x')]
+    
+    file_browser['width'] = int(0.15*w/font.measure('0'))
 
 def set_linefeed(txt):
     """Normalise linefeed"""
@@ -1464,13 +1436,13 @@ except:
 
 set_fonts()
 
-file_browser = FileBrowser(root,font=browser_font,height=38,padx=3,pady=3,
-    borderwidth=6,relief=GROOVE,cursor='arrow',state=DISABLED,
-    foreground='white', bg='#222222')
-file_browser.tag_config('selected',foreground='#000000',background="#E0E0E0")
-file_browser.pack(side=LEFT,anchor=NW,expand=YES,fill=Y)
-file_browser.bind('<ButtonRelease>',switch)
-file_browser.bind('<Button-3>',close_dialog)
+file_browser = FileBrowser(root, font=browser_font, height=38, padx=3, pady=3,
+    borderwidth=6, relief=GROOVE, cursor='arrow', state=DISABLED,
+    foreground='white', bg=colors['bg'])
+file_browser.tag_config('selected', foreground='#000000', background="#E0E0E0")
+file_browser.pack(side=LEFT, anchor=NW, expand=YES, fill=Y)
+file_browser.bind('<ButtonRelease>', switch)
+file_browser.bind('<Button-3>', close_dialog)
 
 set_sizes()    
 
