@@ -1249,6 +1249,8 @@ def set_sizes():
     w, h = [int(x) for x in root.geometry().split('+')[0].split('x')]
     
     file_browser['width'] = int(0.15*w/font.measure('0'))
+    if docs:
+        docs[current_doc].editor.zone['width'] = int(0.85*w/font.measure('0'))
 
 def set_linefeed(txt):
     """Normalise linefeed"""
