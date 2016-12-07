@@ -23,10 +23,10 @@
     "config": "Configuration",
     "encoding": "Encoding",
     "Encoding error": "Encoding error",
-    "encoding_err_msg": "The file cannot be encoded in %%s\nTry with another encoding :",
-    "not encoding": "The file is not encoded in %%s",
-    "cannot encode": "The file cannot be encoded in %%s",
-    "file_change %s": "File %%s was modified.\nReload ?",
+    "encoding_err_msg": "The file cannot be encoded in %s\nTry with another encoding :",
+    "not encoding": "The file is not encoded in %s",
+    "cannot encode": "The file cannot be encoded in %s",
+    "file_change": "File %s was modified.\nReload ?",
     "opening_file": "Open file",
     "already_open_err_msg": "The file is already open",
     "File not found": "File not found",
@@ -34,7 +34,7 @@
     "Charset not found": "Charset not found",
     "highlight": "Syntax highlight",
     "unicode error": "Unicode error",
-    "can't encode with %s": "Cannot encode in %%s",
+    "can't encode with %s": "Cannot encode in %s",
     "linefeed": "Linefeed",
     "spaces_per_tab": "Spaces per tab"
 }

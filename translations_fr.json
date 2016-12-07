@@ -23,10 +23,10 @@
     "config": "Configuration",
     "encoding": "Encodage",
     "Encoding error": "Erreur d'encodage",
-    "encoding_err_msg": "Le fichier ne peut pas être encodé en %%s\nEssayer avec un autre encodage :",
-    "not encoding": "Le fichier n'est pas encodé en %%s",
-    "cannot encode": "Le fichier ne peut pas être encodé en %%s",
-    "file_change %s": "Le fichier %%s a été modifié.\nLe recharger ?",
+    "encoding_err_msg": "Le fichier ne peut pas être encodé en %s\nEssayer avec un autre encodage :",
+    "not encoding": "Le fichier n'est pas encodé en %s",
+    "cannot encode": "Le fichier ne peut pas être encodé en %s",
+    "file_change": "Le fichier %s a été modifié.\nLe recharger ?",
     "opening_file": "Ouverture de fichier",
     "already_open_err_msg": "Le fichier est déjà ouvert",
     "File not found": "Fichier non trouvé",
@@ -34,7 +34,7 @@
     "Charset not found": "Jeu de caractères non trouvé",
     "highlight": "Syntaxe colorée",
     "unicode error": "Erreur d'encodage",
-    "can't encode with %s": "Impossible d'encoder en %%s",
+    "can't encode with %s": "Impossible d'encoder en %s",
     "linefeed": "Saut de ligne",
     "spaces_per_tab": "Espaces par tabulation"
 }

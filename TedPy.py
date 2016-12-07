@@ -824,7 +824,7 @@ def check_file_change():
             if doc.last_modif != os.stat(doc.file_name).st_mtime:
                 askreload = tkinter.messagebox.askyesno(
                     title=_("File changed"),
-                    message=_("file_change %s") %doc.file_name)
+                    message=_("file_change") %doc.file_name)
                 if askreload:
                     _close()
                     open_module(doc.file_name)
