@@ -421,7 +421,7 @@ class Editor(Frame):
         self.line_nums.insert(END, '\n'*int(last_line_height-1))
         self.line_nums.insert(END, '\n'*10) # to be able to move vertically
         # compute line nums offset to be aligned with text
-        nb_line_nums = self.ix2pos(END)[0]
+        nb_line_nums = int(self.line_nums.index(END).split('.')[0])
         line_nums_height = char_height*nb_line_nums
         first_line_num_offset = self.line_nums.bbox('1.0')[1]
         move = (first_line_num_offset-first_offset)/line_nums_height
