@@ -302,7 +302,11 @@ class Editor(Frame):
     def html_highlight(self):
         txt = self.zone.get(1.0,END).rstrip()+'\n'
         parser = HTMLParser(self.zone)
-        parser.feed(txt)
+        # while editing there may be parser error, ignore them
+        try:
+            parser.feed(txt)
+        except:
+            pass
                 
     def insert_cr(self,event):
         """Handle Enter key"""
