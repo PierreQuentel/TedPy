@@ -13,7 +13,7 @@ from tkinter import *
 from tkinter.filedialog import *
 import tkinter.messagebox
 import tkinter.simpledialog
-from tkinter.font import Font
+import tkinter.font
 from tkinter.scrolledtext import ScrolledText
 
 version = "1.0"
@@ -1243,10 +1243,15 @@ def set_fonts():
     
     fsize = -int(root_w/100)
     
-    family = "Consolas"
-    font = Font(family=family, size=fsize)
-    sh_font = Font(family=family, size=int(1.5*fsize), weight="bold")
-    browser_font = Font(family="verdana",size=fsize)
+    families = tkinter.font.families(root)
+    if "Cosnsolas" in families:
+        family = "Consolas"
+    else:
+        family = "Courier New"
+    font = tkinter.font.Font(family=family, size=fsize)
+    sh_font = tkinter.font.Font(family=family, size=int(1.5*fsize), 
+        weight="bold")
+    browser_font = tkinter.font.Font(family="verdana", size=fsize)
 
 def set_sizes():
     # file browser covers 15% of width
