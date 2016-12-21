@@ -158,9 +158,9 @@ class Editor(Frame):
         widget.bind('<Button-1>', _close)
         widget.pack(side=RIGHT, anchor=E)
         Label(shortcuts, text='    ', bg=bar_bg).pack(side=RIGHT)
-        self.label_line = Label(shortcuts, text='1', font=font, fg='#fff', 
+        self.label_line = Label(shortcuts, font=font, fg='#fff', 
             bg=bar_bg)
-        self.label_column = Label(shortcuts, text='1', font=font, fg='#fff', 
+        self.label_column = Label(shortcuts, font=font, fg='#fff', 
             bg=bar_bg)
         self.label_column.pack(side=RIGHT)
         Label(shortcuts, text=' | ', bg=bar_bg, fg='#fff').pack(side=RIGHT)
@@ -653,20 +653,20 @@ class Editor(Frame):
             if event.keysym in ['Shift_R','Shift_L']:
                 self.shift = False
             return
-        if not event.keysym in ['Up','Down','Left','Right','Next','Prior',
-            'Home','End','Control_L','Control_R']:
+        if not event.keysym in ['Up', 'Down', 'Left', 'Right', 'Next', 
+            'Prior', 'Home', 'End', 'Control_L', 'Control_R']:
             self.syntax_highlight()
         self.mark_brace(INSERT)
         if not event.char:
-            if event.keysym in ['Next','Prior','BackSpace','Delete'] \
+            if event.keysym in ['Next', 'Prior', 'BackSpace', 'Delete'] \
                 or self.current_line < self.first_visible \
                 or self.current_line > self.last_visible:
                 self.print_line_nums()
 
     def update_line_col(self,*args):
-        self.current_line,column = map(int,self.zone.index(INSERT).split('.'))
-        self.label_line['text'] = str(self.current_line)
-        self.label_column['text'] = str(column+1)
+        self.current_line, column = map(int,self.zone.index(INSERT).split('.'))
+        self.label_line['text'] = "{: 5d}".format(self.current_line)
+        self.label_column['text'] = "{: 3d}".format(column+1)
 
     def wheel(self,event):
         global wheel_delta
@@ -1037,6 +1037,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     current_doc = docs.index(new_doc)
     file_browser.select(new_doc)
     editor.zone.mark_set(INSERT,1.0)
+    editor.update_line_col()
     editor.syntax_highlight()
     editor.zone.edit_reset()
     editor.frame.pack(expand=YES,fill=BOTH)
@@ -1244,7 +1245,7 @@ def set_fonts():
     fsize = -int(root_w/100)
     
     families = tkinter.font.families(root)
-    if "Cosnsolas" in families:
+    if "Consolas" in families:
         family = "Consolas"
     else:
         family = "Courier New"
