@@ -355,6 +355,13 @@ class Editor(Frame):
             self.control = True
 
     def mark_brace(self, pos):
+        if not syntax_highlight.get():
+            return
+
+        last = self.zone.get(INSERT+'-1c')
+        if last in '([{':
+            return
+        
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
         if not ext in ['.py', '.js']:
@@ -1241,7 +1248,6 @@ def set_fonts():
     global font, sh_font, browser_font
 
     root_w = root.winfo_screenwidth()
-    
     fsize = -int(root_w/100)
     
     families = tkinter.font.families(root)
