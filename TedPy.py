@@ -358,46 +358,48 @@ class Editor(Frame):
         if not syntax_highlight.get():
             return
 
-        last = self.zone.get(INSERT+'-1c')
-        if last in '([{':
-            return
-        
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
         if not ext in ['.py', '.js']:
             return
         self.zone.tag_remove('matching_brace', '1.0', END)
-        for p in pos, pos+'-1c':
+
+        for p in pos, pos+'+1c':
+            p = self.zone.index(p)
             if "string" in self.zone.tag_names(p):
-                continue
-            car = self.zone.get(self.zone.index(p))
+                return
+            car = self.zone.get(p)
             if car in '([{':
                 # opening brace : look for closing (after)
                 match, start, nb = ')]}'['([{'.index(car)], p, 1
                 incr, comp, end_pos = "+1c", '>=', END
+                break
             elif car in '}])':
                 # closing brace : look for opening (before)
                 match, start, nb = '([{'[')]}'.index(car)], p, 1
                 incr, comp, end_pos = "-1c", '<=', '1.0'
-            else:
+                break
+        else:
+            return
+
+        pattern = '[\\'+car+'\\'+match+']'
+        while True:
+            p = self.zone.search(pattern, p+incr, end_pos, regexp=True,
+                backwards=incr=="-1c")
+            if not p:
+                break
+            elif 'string' in self.zone.tag_names(p):
                 continue
-            while True:
-                p = self.zone.index(p+incr)
-                if self.zone.compare(p, comp, end_pos):
-                    self.zone.tag_add('lone_brace', start)
-                    break
-                elif 'string' in self.zone.tag_names(p):
-                    continue
-                else:
-                    c = self.zone.get(p)
-                    if c == car:
-                        nb += 1
-                    elif c == match:
-                        nb -= 1
-                        if nb == 0:
-                            self.zone.tag_add('matching_brace', start)
-                            self.zone.tag_add('matching_brace', p)
-                            return
+            else:
+                c = self.zone.get(p)
+                if c == car:
+                    nb += 1
+                elif c == match:
+                    nb -= 1
+                    if nb == 0:
+                        self.zone.tag_add('matching_brace', start)
+                        self.zone.tag_add('matching_brace', p)
+                        return
         
     def paste(self,event):
         self.syntax_highlight()
