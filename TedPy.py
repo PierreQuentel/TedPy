@@ -363,8 +363,8 @@ class Editor(Frame):
         if not ext in ['.py', '.js']:
             return
         self.zone.tag_remove('matching_brace', '1.0', END)
-
-        for p in pos, pos+'+1c':
+        
+        for p in pos, pos+'+1c', pos+'-1c':
             p = self.zone.index(p)
             if "string" in self.zone.tag_names(p):
                 return
@@ -381,11 +381,11 @@ class Editor(Frame):
                 break
         else:
             return
-
+        
         pattern = '[\\'+car+'\\'+match+']'
         while True:
-            p = self.zone.search(pattern, p+incr, end_pos, regexp=True,
-                backwards=incr=="-1c")
+            p = self.zone.search(pattern, self.zone.index(p+incr), end_pos, 
+                regexp=True, backwards=incr=="-1c")
             if not p:
                 break
             elif 'string' in self.zone.tag_names(p):
@@ -400,7 +400,7 @@ class Editor(Frame):
                         self.zone.tag_add('matching_brace', start)
                         self.zone.tag_add('matching_brace', p)
                         return
-        
+
     def paste(self,event):
         self.syntax_highlight()
         self.print_line_nums()
