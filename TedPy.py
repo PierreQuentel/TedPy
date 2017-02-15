@@ -365,28 +365,35 @@ class Editor(Frame):
             return
         self.zone.tag_remove('matching_brace', '1.0', END)
         
-        for p in pos, pos+'+1c', pos+'-1c':
-            p = self.zone.index(p)
-            if "string" in self.zone.tag_names(p):
+        for p in pos+'-1c', pos, pos+'+1c':
+            px = self.zone.index(p)
+            if "string" in self.zone.tag_names(px):
                 return
-            car = self.zone.get(p)
+            car = self.zone.get(px)
             if car in '([{':
                 # opening brace : look for closing (after)
-                match, start, nb = ')]}'['([{'.index(car)], p, 1
-                incr, comp, end_pos = "+1c", '>=', END
+                match, start, nb = ')]}'['([{'.index(car)], px, 1
+                incr, backwards, end_pos = "+1c", False, END
                 break
-            elif car in '}])':
+            elif p in [pos, pos+"-1c"] and car in '}])':
+                if p == pos + "-1c" and self.zone.get(pos) in '([{':
+                    continue
                 # closing brace : look for opening (before)
-                match, start, nb = '([{'[')]}'.index(car)], p, 1
-                incr, comp, end_pos = "-1c", '<=', '1.0'
+                match, start, nb = '([{'[')]}'.index(car)], px, 1
+                incr, backwards, end_pos = "-1c", True, '1.0'
                 break
         else:
             return
         
         pattern = '[\\'+car+'\\'+match+']'
+        p = start
         while True:
-            p = self.zone.search(pattern, self.zone.index(p+incr), end_pos, 
-                regexp=True, backwards=incr=="-1c")
+            next_pos = self.zone.index(p+incr)
+            if backwards and re.match(pattern, self.zone.get(next_pos)):
+                p = next_pos
+            else:
+                p = self.zone.search(pattern, next_pos, end_pos, 
+                    regexp=True, backwards=backwards)
             if not p:
                 break
             elif 'string' in self.zone.tag_names(p):
@@ -890,7 +897,7 @@ def close_dialog(event):
     doc_index = docs.index(file_browser.doc_at_line[line_num])
     browser = Menu(root,tearoff=0,relief=FLAT,background="#DDD")
     browser.add_command(label="close",command=_close)
-    browser.post(event.x_root,event.y_root)
+    browser.post(event.x_root, event.y_root-10)
 
 def close_window(*args):
     while docs:
