@@ -376,7 +376,7 @@ class Editor(Frame):
                 incr, backwards, end_pos = "+1c", False, END
                 break
             elif p in [pos, pos+"-1c"] and car in '}])':
-                if p == pos + "-1c" and self.zone.get(pos) in '([{':
+                if p == pos + "-1c" and self.zone.get(pos) in '([{}])':
                     continue
                 # closing brace : look for opening (before)
                 match, start, nb = '([{'[')]}'.index(car)], px, 1
