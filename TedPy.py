@@ -2,6 +2,7 @@
 
 import sys
 import os
+import subprocess
 import re
 import string
 import time
@@ -1103,15 +1104,19 @@ def run(*args):
         interp = '"%s"'%interp
     fname = docs[current_doc].file_name
     if sys.platform=='win32':
-        # use batch file run.bat to run script in another process
-        out = open("run.bat","w")
-        out.write("@echo off\ncd %1%\n{0} %2%\npause\nexit".format(interp))
-        out.close()
-        d_name = os.path.dirname(fname)
-        d_name = d_name.replace('/','\\')
-        os.system('start /D "%s" run "%s" "%s"' %(os.getcwd(),d_name,fname))
-    else:   # XXX untested
-        os.spawnv(os.P_NOWAIT, interp, [interp, '"'+fname+'"'])
+        # use START in file directory
+        with open("run.bat", "w", encoding="utf-8") as out:
+            line = "@echo off\ncd %1%\n{0} %2%\npause\nexit"
+            out.write(line.format(interp))
+        dname = os.path.dirname(fname).replace('/', '\\')
+        os.system('start /D "{}" run "{}" "{}"'.format(os.getcwd(),
+            dname, fname))
+    else:   # works on Raspbian
+        with open("run.sh", "w", encoding="utf-8") as out:
+            out.write("#!/bin/bash\ncd {}\n{} {}\n".format(
+                os.path.dirname(fname), interp, os.path.basename(fname)))
+        subprocess.Popen('/usr/bin/x-terminal-emulator -e "/bin/bash run.sh"',
+            shell=True)
 
 def save(*args):
     if not docs:
