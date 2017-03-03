@@ -23,7 +23,7 @@ import translation
 translation.language = 'fr'
 _ = translation.translate
 
-python_versions = [ ('Python %s.%s' %sys.version_info[:2],sys.executable)]
+python_versions = [ ('Python %s.%s' %sys.version_info[:2], sys.executable)]
 encodings = ['ascii', 'iso-8859-1', 'latin-1', 'utf-8', 'cp850']
 
 # config
@@ -152,6 +152,7 @@ class Editor(Frame):
             ('↓',self.change_size)]:
             widget = Label(shortcuts, text=src, relief=RIDGE, bg="#FFF",
                 foreground="#000", font=sh_font)
+            widget['width'] = 2
             widget.bind('<Button-1>', callback)
             widget.pack(side=LEFT, anchor=W)
         
@@ -186,8 +187,8 @@ class Editor(Frame):
         shortcuts.pack(fill=BOTH)
         bg = colors['bg']
         
-        zone = ScrolledText(frame, width=self.text_width()-3,
-            font=self.font, wrap=NONE, relief=FLAT, undo=True,
+        zone = ScrolledText(frame, width=self.text_width(),
+            font=font, wrap=NONE, relief=FLAT, undo=True,
             autoseparators=True, bg=bg, foreground=colors['color'],
             insertbackground="white", selectbackground=colors['select'])
         zone.vbar.config(command=self.slide)
@@ -256,12 +257,13 @@ class Editor(Frame):
     def change_size(self, ev):
         """Called when clicking on button ↑ or ↓"""
         up = ev.widget.cget('text') == '↑'
-        previous = self.font.cget('size')
-        if up:
-            self.font.config(size=previous-1)
-        else:
-            self.font.config(size=previous+1)
-        self.zone.config(width=self.text_width()-3)
+        for f in [font, sh_font]:
+            previous = f.cget('size')
+            if up:
+                f.config(size=previous-1)
+            else:
+                f.config(size=previous+1)
+        set_sizes()
 
     def change_wrap(self,*args):
         if self.zone['wrap'] == NONE:
@@ -271,8 +273,8 @@ class Editor(Frame):
         self.print_line_nums()
 
     def click(self,event):
-        self.zone.tag_remove('selection',1.0,END)
-        self.zone.tag_remove('found',1.0,END)
+        self.zone.tag_remove('selection', 1.0, END)
+        self.zone.tag_remove('found', 1.0, END)
         self.mark_brace(CURRENT)
         # if there is a menu with all functions and classes, unpost it
         if hasattr(self, 'browser'):
@@ -645,8 +647,8 @@ class Editor(Frame):
         self.last_highlight_time = self.last_update-t0
 
     def text_width(self):
-        pix_per_char = self.font.measure('0') # pixels per char in this font
-        return int(0.83*root.winfo_screenwidth()/pix_per_char)
+        pix_per_char = font.measure('0') # pixels per char in this font
+        return int(0.85*root.winfo_screenwidth()/pix_per_char)
 
     def undo(self,*args):
         try:
@@ -1073,14 +1075,6 @@ def replace(*args):
     if docs:
         Searcher().replace()
 
-def resize(evt):
-    if evt.widget is root:
-        set_fonts()
-        set_sizes()
-        if docs:
-            editor = docs[current_doc].editor
-            editor.zone.pack(expand=YES, fill=BOTH)
-
 def run(*args):
     if not docs or not docs[current_doc].editor.zone.get(1.0,END).strip():
         return
@@ -1130,7 +1124,7 @@ def save_as():
     if not docs:
         return
     file_name = asksaveasfilename(initialfile=docs[current_doc].file_name,
-        initialdir=default_dir(),defaultextension=".py")
+        initialdir=default_dir(), defaultextension=".py")
     if file_name:
         doc = docs[current_doc]
         doc.file_name = os.path.normpath(file_name)
@@ -1260,7 +1254,7 @@ def search_in_files(*args):
                         break
 
 def set_fonts():
-    global font, sh_font, browser_font
+    global font, sh_font
 
     root_w = root.winfo_screenwidth()
     fsize = -int(root_w/100)
@@ -1273,14 +1267,14 @@ def set_fonts():
     font = tkinter.font.Font(family=family, size=fsize)
     sh_font = tkinter.font.Font(family=family, size=int(1.5*fsize), 
         weight="bold")
-    browser_font = tkinter.font.Font(family="verdana", size=fsize)
-
+    
 def set_sizes():
     # file browser covers 15% of width
     w, h = [int(x) for x in root.geometry().split('+')[0].split('x')]
-    file_browser['width'] = int(0.15*w/font.measure('0'))
-    if docs:
-        docs[current_doc].editor.zone['width'] = int(0.85*w/font.measure('0'))
+    w, h = root.winfo_screenwidth(), root.winfo_screenheight()
+    file_browser['width'] = int(0.15 * w / font.measure('0'))
+    for doc in docs:
+        doc.editor.zone['width'] = int(0.85 * w / font.measure('0'))
 
 def set_linefeed(txt):
     """Normalise linefeed"""
@@ -1411,7 +1405,6 @@ root.bind('<Control-n>', new_module)
 root.bind('<Control-o>', ask_module)
 root.bind('<Control-s>', save)
 root.bind('<Control-r>', run)
-root.bind('<Configure>', resize)
 root.bind('<F5>', search)
 root.bind('<F6>', search_in_files)
 root.bind('<F8>', replace)
@@ -1468,7 +1461,7 @@ except:
 
 set_fonts()
 
-file_browser = FileBrowser(root, font=browser_font, height=38, padx=3, pady=3,
+file_browser = FileBrowser(root, font=font, height=38, padx=3, pady=3,
     borderwidth=6, relief=GROOVE, cursor='arrow', state=DISABLED,
     foreground='white', bg=colors['bg'])
 file_browser.tag_config('selected', foreground='#000000', background="#E0E0E0")
@@ -1477,7 +1470,7 @@ file_browser.bind('<ButtonRelease>', switch)
 file_browser.bind('<Button-3>', close_dialog)
 
 root.geometry('%sx%s' %(root.winfo_screenwidth(), root.winfo_screenheight()))
-set_sizes()    
+set_sizes()
 
 right = Frame(root)
 
