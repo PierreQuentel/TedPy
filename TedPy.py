@@ -252,7 +252,7 @@ class Editor(Frame):
             src.encode(new_enc)
         except:
             tkinter.messagebox.showinfo(title=_('Encoding error'),
-                message=_('not encoding') %self.prev_enc)
+                message=_('not encoding').format(self.prev_enc))
 
     def change_size(self, ev):
         """Called when clicking on button ↑ or ↓"""
@@ -1297,11 +1297,11 @@ def set_linefeed(txt):
 def switch(event):
     if not docs:
         return
-    line_num = int(event.widget.index(CURRENT).split('.')[0])-1
+    line_num = int(event.widget.index(CURRENT).split('.')[0]) - 1
     if not line_num in file_browser.doc_at_line:
         return
     new_index = docs.index(file_browser.doc_at_line[line_num]) 
-    if new_index==current_doc:
+    if new_index == current_doc:
         return
     else:
         switch_to(new_index)
@@ -1326,7 +1326,7 @@ def update_highlight(*args):
 encoding_for_next_open = StringVar(root)
 encoding_for_next_open.set('utf-8')
 python_version = StringVar(root)
-python_version.trace("w",make_patterns)
+python_version.trace('w', make_patterns)
 python_version.set(python_versions[0][0])
 spaces_per_tab = IntVar(root)
 spaces_per_tab.set(4)
@@ -1351,9 +1351,9 @@ for label, ext in [('Python (.py)', 'py'), ('Javascript (.js)', 'js'),
     ('HTML (.html)', 'html'), ('Text (.txt)', 'txt')]:
     menu_new.add_command(label=label, command=lambda x=ext:new_module(x))
 menuModule.add_cascade(menu=menu_new, label=_('new'))
-menuModule.add_command(label=_('open'), accelerator="Ctrl+O",
+menuModule.add_command(label=_('open'), accelerator='Ctrl+O',
     command=ask_module)
-menuModule.add_command(label=_('save as')+"...", command=save_as)
+menuModule.add_command(label=_('save as')+'...', command=save_as)
 menuModule.add_command(label=_('save'), accelerator='Ctrl+S', command=save)
 menuModule.add_command(label=_('close'), command=close_window)
 menuModule.add_command(label=_('run'), accelerator="Ctrl+R", command=run)
@@ -1370,24 +1370,24 @@ try:
     if history:
         menuModule.add_separator()
         for f in history:
-            menuModule.add_command(label=f,command=lambda f=f:open_module(f))
+            menuModule.add_command(label=f, command=lambda f=f:open_module(f))
 except IOError:
     pass
 
-menubar.add_cascade(menu=menuModule,label=_("file"))
+menubar.add_cascade(menu=menuModule, label=_('file'))
 
 menuEdition=Menu(menubar,tearoff=0)
 menuEdition.add_command(label=_('search'), command=search, accelerator="F5")
 menuEdition.add_command(label=_('search in files'), command=search_in_files,
     accelerator="F6")
-menuEdition.add_command(label=_('replace'),command=replace,accelerator="F8")
-menubar.add_cascade(menu=menuEdition,label=_('edit'))
+menuEdition.add_command(label=_('replace'), command=replace, accelerator="F8")
+menubar.add_cascade(menu=menuEdition, label=_('edit'))
 
-menuConfig = Menu(menubar,tearoff=0)
-menuEncoding = Menu(menuConfig,tearoff=0)
+menuConfig = Menu(menubar, tearoff=0)
+menuEncoding = Menu(menuConfig, tearoff=0)
 for enc in encodings:
-    menuEncoding.add_radiobutton(label=enc,variable=encoding_for_next_open)
-menuConfig.add_cascade(menu=menuEncoding,label=_('encoding'))
+    menuEncoding.add_radiobutton(label=enc, variable=encoding_for_next_open)
+menuConfig.add_cascade(menu=menuEncoding, label=_('encoding'))
 
 menuIndent = Menu(menuConfig, tearoff=0)
 for nb in [2, 4]:
@@ -1400,10 +1400,10 @@ for lf in ['Unix: \\n', 'DOS: \\r\\n', 'Mac: \\r']:
 menuConfig.add_cascade(menu=menuLinefeed, label=_('linefeed'))
 menuInterpreter = Menu(menuConfig,tearoff=0)
 for py_ver,py_int in python_versions:
-    menuInterpreter.add_radiobutton(label=py_ver,variable=python_version)
-menuConfig.add_cascade(menu=menuInterpreter,label=_('Python version'))
-menuConfig.add_checkbutton(label=_('highlight'),variable=syntax_highlight)
-menubar.add_cascade(menu=menuConfig,label=_('config'))
+    menuInterpreter.add_radiobutton(label=py_ver, variable=python_version)
+menuConfig.add_cascade(menu=menuInterpreter, label=_('Python version'))
+menuConfig.add_checkbutton(label=_('highlight'), variable=syntax_highlight)
+menubar.add_cascade(menu=menuConfig, label=_('config'))
 
 root.config(menu=menubar)
 
@@ -1414,7 +1414,7 @@ root.bind('<Control-r>', run)
 root.bind('<F5>', search)
 root.bind('<F6>', search_in_files)
 root.bind('<F8>', replace)
-root.protocol("WM_DELETE_WINDOW", close_window)
+root.protocol('WM_DELETE_WINDOW', close_window)
 
 class FileBrowser(tkinter.Text):
     # simulate a listbox : with built-in listboxes, selection 
@@ -1423,67 +1423,71 @@ class FileBrowser(tkinter.Text):
     def update(self):
         lines = [(os.path.basename(doc.file_name),doc) for doc in docs ]
         lines.sort(key=lambda x:x[0].lower())
-        self.doc_line = dict((line[1],i+1) for (i,line) in enumerate(lines))
-        self.doc_at_line = dict((i,line[1]) for (i,line) in enumerate(lines))
+        self.doc_line = dict((line[1], i + 1) 
+            for (i,line) in enumerate(lines))
+        self.doc_at_line = dict((i, line[1]) 
+            for (i, line) in enumerate(lines))
         self['state'] = NORMAL
-        tkinter.Text.delete(self,1.0,END)
+        tkinter.Text.delete(self, 1.0, END)
         for line in lines:
-            tkinter.Text.insert(self,END,line[0]+'\n')
+            tkinter.Text.insert(self, END, line[0] + '\n')
         self['state'] = DISABLED
         
-    def select_clear(self,start,stop):
-        self.tag_remove('selected','%s.0' %(start+1),
-            '%s.0lineend' %self.index(stop).split('.')[0])
+    def select_clear(self, start, stop):
+        self.tag_remove('selected', '{}.0'.format(start + 1),
+            '{}.0lineend'.format(self.index(stop).split('.')[0]))
 
-    def select(self,doc):
-        self.tag_remove('selected',1.0,END)
+    def select(self, doc):
+        self.tag_remove('selected', 1.0, END)
         line = self.doc_line[doc]
-        self.tag_add('selected','%s.0' %line,'%s.0lineend' %line)
+        self.tag_add('selected', '{}.0'.format(line), 
+            '{}.0lineend'.format(line))
 
     def delete(self,doc):
         line = self.doc_line[doc]
-        tkinter.Text.delete(self,'%s.0' %line,'%s.0lineend' %line)
+        tkinter.Text.delete(self,'{}.0'.format(line), 
+            '{}.0lineend'.format(line))
 
     def mark_if_changed(self):
         """Add a * after file name if modified since open or last save"""
         self['state'] = NORMAL
         doc = docs[current_doc]
         line_num = self.doc_line[doc]
-        start,end = '%s.0' %line_num, '%s.0lineend' %line_num
+        start, end = '{}.0'.format(line_num), '{}.0lineend'.format(line_num)
         lib = self.get(start,end)
-        if doc.editor.zone.get(1.0,END+'-1c') != doc.text:
+        if doc.editor.zone.get(1.0, END + '-1c') != doc.text:
             if not lib.endswith('*'):
-                self.insert(end,'*','selected')
+                self.insert(end, '*', 'selected')
         elif lib.endswith('*'):
-            tkinter.Text.delete(self,self.index(end)+'-1c')
+            tkinter.Text.delete(self, self.index(end) + '-1c')
         self['state'] = DISABLED
 
 
 # make root cover the entire screen, if supported by the OS
 try:
-    root.wm_state(newstate="zoomed")
+    root.wm_state(newstate='zoomed')
 except:
-    root.wm_state(newstate="normal")
+    root.wm_state(newstate='normal')
 
 set_fonts()
 
 file_browser = FileBrowser(root, font=font, height=38, padx=3, pady=3,
     borderwidth=6, relief=GROOVE, cursor='arrow', state=DISABLED,
     foreground='white', bg=colors['bg'])
-file_browser.tag_config('selected', foreground='#000000', background="#E0E0E0")
+file_browser.tag_config('selected', foreground='#000', background='#eee')
 file_browser.pack(side=LEFT, anchor=NW, expand=YES, fill=Y)
 file_browser.bind('<ButtonRelease>', switch)
 file_browser.bind('<Button-3>', close_dialog)
 
-root.geometry('%sx%s' %(root.winfo_screenwidth(), root.winfo_screenheight()))
+root.geometry('{}x{}'.format(root.winfo_screenwidth(), 
+    root.winfo_screenheight()))
 set_sizes()
 
 right = Frame(root)
 
 panel = Frame(right)
-panel.pack(expand=YES,fill=BOTH)
-
-right.pack(expand=YES,fill=BOTH)
+panel.pack(expand=YES, fill=BOTH)
+right.pack(expand=YES, fill=BOTH)
 
 check_file_change()
 
@@ -1491,4 +1495,3 @@ if len(sys.argv)>1:
     open_module(sys.argv[1])
 
 root.mainloop()
-
