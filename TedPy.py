@@ -57,15 +57,16 @@ curly_braces = r'[\{\}]'
 parenthesis = r'[\(\)]'
 patterns = {'.html':[], '.js':[]} # for Python, set by make_patterns()
 for lang in patterns:
-    patterns[lang]+=[(square_brackets,'square_bracket'),
-        (parenthesis,'parenthesis'),(curly_braces,'curly_brace')]
+    patterns[lang]+=[(square_brackets, 'square_bracket'),
+        (parenthesis, 'parenthesis'), (curly_braces, 'curly_brace')]
 from js_keywords import js_keywords
-js_keywords = [ (r'\b'+kw+r'\b') for kw in js_keywords ]
-patterns['.js'].append(('|'.join(js_keywords),'keyword'))
-zones = {'.py':[ ('"""','"""','string'),('"','"','string'),("'","'",'string'),
-        ('#','\n','comment')],
-    '.js':[('"','"','string'),("'","'",'string'),('//','\n','comment'),
-        ('/*','*/','comment')],
+js_keywords = [(r'\b'+kw+r'\b') for kw in js_keywords]
+patterns['.js'].append(('|'.join(js_keywords), 'keyword'))
+zones = {
+    '.py':[ ('"""', '"""', 'string'), ('"', '"', 'string'),
+        ("'", "'", 'string'), ('#', '\n', 'comment')],
+    '.js':[('"', '"', 'string'), ("'", "'", 'string'), 
+        ('//', '\n', 'comment'), ('/*', '*/', 'comment')],
     '.html':[]
     }
 
@@ -116,12 +117,13 @@ class Document:
             num = 1
             while True:
                 file_name = os.path.join(default_dir(), 
-                    "module%s.%s" %(num,ext))
+                    "module%s.%s" %(num, ext))
                 if not os.path.exists(file_name):
                     break
                 num += 1
         self.file_name = os.path.normpath(file_name)
         self.text = text
+        self.ext = ext
 
 
 class EncodingChooser(tkinter.simpledialog._QueryDialog):
@@ -977,14 +979,20 @@ def new_module(ext):
     for widget in panel.winfo_children():
         widget.pack_forget()
     editor = Editor()
-    editor.frame.pack(expand=YES,fill=BOTH)
-    doc = Document(None,ext)
+    editor.frame.pack(expand=YES, fill=BOTH)
+    doc = Document(None, ext)
     doc.editor = editor
     doc.editor.encoding.set(encoding_for_next_open.get())
     docs.append(doc)
     file_browser.update()
     current_doc = len(docs)-1
     file_browser.select(doc)
+    if ext == 'html':
+        # prefill HTML page
+        text = ("<!doctype html>\n<html>\n<head>\n</head>\n<body>\n</body>"
+            + "\n</html>")
+        editor.zone.insert(1.0, text)
+        editor.syntax_highlight()
     editor.zone.focus()
     root.title('TedPy - {}'.format(docs[current_doc].file_name))
 
@@ -1130,7 +1138,7 @@ def save_as():
     if not docs:
         return
     file_name = asksaveasfilename(initialfile=docs[current_doc].file_name,
-        initialdir=default_dir(), defaultextension=".py")
+        initialdir=default_dir())
     if file_name:
         doc = docs[current_doc]
         doc.file_name = os.path.normpath(file_name)
