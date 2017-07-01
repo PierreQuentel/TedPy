@@ -1007,10 +1007,9 @@ def open_module(file_name,force_reload=False,force_encoding=None):
         return
     if os.path.splitext(file_name)[1]=='.py':
         # search a line with encoding (see PEP 0263)
-        src = open(file_name,'rb')
+        src = open(file_name)
         try:
             head = src.readline()+src.readline()
-            head = head.decode('ascii')
             file_encoding = py_encoding(head)
         except UnicodeDecodeError:
             pass
@@ -1025,7 +1024,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     if not file_encoding:
         file_encoding = encoding_for_next_open.get()
     try:
-        txt = open(file_name, 'r', encoding=file_encoding, newline='').read()
+        txt = open(file_name, 'r', encoding=file_encoding).read()
         txt = txt.replace('\t', ' ' * spaces_per_tab.get())
         linefeed.set(guess_linefeed(txt))
         # internally use \n, otherwise tkinter adds an extra whitespace 
@@ -1284,11 +1283,11 @@ def set_fonts():
     
 def set_sizes():
     # file browser covers 15% of width
-    w, h = [int(x) for x in root.geometry().split('+')[0].split('x')]
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
-    file_browser['width'] = int(0.15 * w / font.measure('0'))
+    ratio = w / font.measure('0')
+    file_browser['width'] = int(0.15 * ratio)
     for doc in docs:
-        doc.editor.zone['width'] = int(0.85 * w / font.measure('0'))
+        doc.editor.zone['width'] = int(0.85 * ratio)
 
 def set_linefeed(txt):
     """Normalise linefeed"""
@@ -1301,6 +1300,24 @@ def set_linefeed(txt):
         return txt.replace(b'\n', b'\r')
     else:
         return txt.replace(b'\n', b'\r\n')
+
+def show_trailing_whitespace():
+    """Show a report with trailing whitespaces in source code."""
+    if docs:
+        text = docs[current_doc].editor.zone.get(1.0, END)
+        lf = linefeed.get()[0]
+        sep = ['\n', '\r', '\r\n']['UMD'.find(lf)] # line separator
+        lines = text.split(sep)
+        report = _('trailing_whitespace') + '\n\n'
+        for i, line in enumerate(lines):
+            if not line.strip() and (' ' in line or len(line) > 1):
+                report += '{}: {}\n'.format(i+1, line)
+            if line.strip() and line.rstrip('\n\r').endswith(' '):
+                report += '{}: {}\n'.format(i+1, line)
+        top = Toplevel()
+        zone = ScrolledText(top)
+        zone.insert(END, report)
+        zone.pack()
 
 def switch(event):
     if not docs:
@@ -1389,6 +1406,9 @@ menuEdition.add_command(label=_('search'), command=search, accelerator="F5")
 menuEdition.add_command(label=_('search in files'), command=search_in_files,
     accelerator="F6")
 menuEdition.add_command(label=_('replace'), command=replace, accelerator="F8")
+menuEdition.add_separator()
+menuEdition.add_command(label=_('trailing_whitespace'),
+    command=show_trailing_whitespace)
 menubar.add_cascade(menu=menuEdition, label=_('edit'))
 
 menuConfig = Menu(menubar, tearoff=0)
