@@ -36,6 +36,7 @@
     "save as": "Save as",
     "search_in_files": "Search in files - {}",
     "spaces_per_tab": "Spaces per tab",
+    "trailing_whitespace": "Trailing whitespaces",
     "undo": "Undo",
     "unicode error": "Unicode error",
     "wrap": "Wrap"

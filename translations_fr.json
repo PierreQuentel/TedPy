@@ -35,6 +35,7 @@
     "search_in_files": "Recherche dans les fichiers - {}",
     "spaces_per_tab": "Espaces par tabulation",
     "string": "Chaine: {}\n\n",
+    "trailing_whitespace": "Espaces en fin de ligne",
     "undo": "Défaire",
     "unicode error": "Erreur d'encodage",
     "wrap": "Dérouler"
