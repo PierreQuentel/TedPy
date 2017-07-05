@@ -212,6 +212,8 @@ class Editor(Frame):
         zone.bind('<Key>', self.key_pressed)
         zone.bind('<KeyRelease>', self.update)
         zone.bind('<MouseWheel>', self.wheel)
+        zone.bind('<Button-4>', self.wheel2) # wheel up
+        zone.bind('<Button-5>', self.wheel2) # wheel down
         zone.bind('<Tab>', self.insert_tab)
         zone.bind('<Shift-Tab>', self.remove_tab)
         zone.bind('<Return>', self.insert_cr)
@@ -696,6 +698,7 @@ class Editor(Frame):
         self.label_column['text'] = "{: 3d}".format(column + 1)
 
     def wheel(self,event):
+        """Mouse wheel for systems where events are Button-4 and Button-5."""
         global wheel_delta
         if event.delta != 0:
             if wheel_delta is None or abs(event.delta) < wheel_delta:
@@ -703,6 +706,11 @@ class Editor(Frame):
             delta = -event.delta / wheel_delta
             self.slide('scroll', int(delta), 'units')
         return "break" # don't propagate
+    
+    def wheel2(self, event):
+        delta = -1 if event.num == 4 else 1
+        self.slide('scroll', delta, 'units')
+            
 
 
 class Searcher:
