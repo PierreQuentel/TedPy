@@ -65,7 +65,7 @@ patterns['.js'].append(('|'.join(js_keywords), 'keyword'))
 zones = {
     '.py':[ ('"""', '"""', 'string'), ('"', '"', 'string'),
         ("'", "'", 'string'), ('#', '\n', 'comment')],
-    '.js':[('"', '"', 'string'), ("'", "'", 'string'), 
+    '.js':[('"', '"', 'string'), ("'", "'", 'string'),
         ('//', '\n', 'comment'), ('/*', '*/', 'comment')],
     '.html':[]
     }
@@ -91,7 +91,7 @@ class HTMLParser(html.parser.HTMLParser):
             y1 = len(lines[-1])
         self.zone.tag_add('keyword', '{}.{}'.format(x0, y0),
             '{}.{}'.format(x0, y0+1+len(tag)))
-        self.zone.tag_add('comment', 
+        self.zone.tag_add('comment',
             '{}.{}'.format(x0, y0+1+len(tag)),
             '{}.{}'.format(x1, y1))
         self.zone.tag_add('keyword', '{}.{}'.format(x1, y1)+'-1c',
@@ -116,7 +116,7 @@ class Document:
             # find the first available name "moduleXXX.ext"
             num = 1
             while True:
-                file_name = os.path.join(default_dir(), 
+                file_name = os.path.join(default_dir(),
                     "module%s.%s" %(num, ext))
                 if not os.path.exists(file_name):
                     break
@@ -131,40 +131,40 @@ class EncodingChooser(tkinter.simpledialog._QueryDialog):
     def body(self,master):
         w = Label(master, text=self.prompt, justify=LEFT)
         w.grid(row=0, padx=5, sticky=W)
-        for i,enc in enumerate(enc for enc in encodings 
+        for i,enc in enumerate(enc for enc in encodings
                 if enc != self.initialvalue.get()):
             Radiobutton(master, text=enc, variable=self.initialvalue,
                 value=enc, padx=15).grid(row=1+i, sticky=W)
 
     def getresult(self):
         return self.initialvalue.get()
-    
+
 
 class Editor(Frame):
 
     def __init__(self):
         frame = Frame(panel, relief=GROOVE, borderwidth=4)
-        
+
         bar_bg = '#666'
         self.font = font
-        
+
         shortcuts = Frame(frame, bg=bar_bg)
         for (src,callback) in [('⤶', self.undo), ('⤷', self.redo),
-            ('≡', self.change_wrap), ('↑', self.change_size), 
+            ('≡', self.change_wrap), ('↑', self.change_size),
             ('↓', self.change_size)]:
             widget = Label(shortcuts, text=src, relief=RIDGE, bg='#FFF',
                 foreground='#000', font=sh_font)
             widget['width'] = 2
             widget.bind('<Button-1>', callback)
             widget.pack(side=LEFT, anchor=W)
-        
+
         widget = Button(shortcuts, text='X', font=sh_font, relief=RIDGE)
         widget.bind('<Button-1>', _close)
         widget.pack(side=RIGHT, anchor=E)
         Label(shortcuts, text='    ', bg=bar_bg).pack(side=RIGHT)
-        self.label_line = Label(shortcuts, font=font, fg='#fff', 
+        self.label_line = Label(shortcuts, font=font, fg='#fff',
             bg=bar_bg)
-        self.label_column = Label(shortcuts, font=font, fg='#fff', 
+        self.label_column = Label(shortcuts, font=font, fg='#fff',
             bg=bar_bg)
         self.label_column.pack(side=RIGHT)
         Label(shortcuts, text=' | ', bg=bar_bg, fg='#fff').pack(side=RIGHT)
@@ -174,21 +174,21 @@ class Editor(Frame):
             relief=RAISED, font=font)
         enc_label.bind('<Button-1>', self.set_encoding)
         enc_label.pack(side=RIGHT)
-        Label(shortcuts, text=_('encoding'), bg=bar_bg, 
+        Label(shortcuts, text=_('encoding'), bg=bar_bg,
             fg='#fff').pack(side=RIGHT)
-        
+
         self.spaces_per_tab = IntVar()
         self.spaces_per_tab.set(4)
-        spaces_per_tab_label = Label(shortcuts, 
+        spaces_per_tab_label = Label(shortcuts,
             textvariable=self.spaces_per_tab, relief=RAISED, font=font)
         spaces_per_tab_label.bind('<Button-1>', self.set_spaces_per_tab)
         spaces_per_tab_label.pack(side=RIGHT)
-        Label(shortcuts, text=_('spaces_per_tab'), bg=bar_bg, 
+        Label(shortcuts, text=_('spaces_per_tab'), bg=bar_bg,
             fg='#fff').pack(side=RIGHT)
-        
+
         shortcuts.pack(fill=BOTH)
         bg = colors['bg']
-        
+
         zone = ScrolledText(frame, width=self.text_width(),
             font=font, wrap=NONE, relief=FLAT, undo=True,
             autoseparators=True, bg=bg, foreground=colors['color'],
@@ -197,18 +197,18 @@ class Editor(Frame):
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
         text_height = int(int(root.winfo_screenheight() * 0.92) / line_height)
         zone['height'] = text_height
-        
+
         hbar = Scrollbar(frame, name='hbar', orient=HORIZONTAL)
         hbar.pack(side=BOTTOM, fill=BOTH, expand=YES)
         hbar['command'] = zone.xview
         zone['xscrollcommand'] = hbar.set
-        
+
         line_nums=Text(frame, width=3, background=bg, font=font,
             selectbackground='#fff', foreground='#808080',
             relief=FLAT, state=DISABLED)
         line_nums.bind('<B1-Motion>', lambda ev: 'break')
         line_nums.pack(side=LEFT, fill=BOTH)
-        
+
         zone.bind('<Key>', self.key_pressed)
         zone.bind('<KeyRelease>', self.update)
         zone.bind('<MouseWheel>', self.wheel)
@@ -226,10 +226,10 @@ class Editor(Frame):
         for tag in ('comment', 'string', 'keyword', 'builtin', 'parenthesis',
             'curly_brace', 'square_bracket', 'too_long'):
             zone.tag_config(tag, foreground=colors[tag])
-                
+
         zone.tag_config('found', foreground=colors['bg'], background='white')
         zone.tag_config('selection', background=zone['selectbackground'])
-        zone.tag_config('matching_brace', background="#444", 
+        zone.tag_config('matching_brace', background="#444",
             foreground='#ff6')
         zone.tag_config('lone_brace', underline=1)
 
@@ -305,7 +305,7 @@ class Editor(Frame):
         self.zone.mark_set(INSERT, '{}linestart+{}c'.format(
              self.zone.index(INSERT),nbspaces))
         return 'break'
-        
+
     def html_highlight(self):
         txt = self.zone.get(1.0, END).rstrip() + '\n'
         parser = HTMLParser(self.zone)
@@ -314,7 +314,7 @@ class Editor(Frame):
             parser.feed(txt)
         except:
             pass
-                
+
     def insert_cr(self,event):
         """Handle Enter key"""
         selected = self.zone.tag_ranges(SEL)
@@ -323,10 +323,14 @@ class Editor(Frame):
             self.zone.delete(*selected)
             if self.zone.index(end).endswith('.0'):
                 self.zone.delete(start)
+
         pos = self.zone.index(INSERT)
         start = self.zone.index('{}linestart'.format(pos))
         txt = self.zone.get(start, pos)
         indent = len(txt) - len(txt.lstrip())
+
+        self.remove_trailing_whitespace()
+
         # for a Python script, if line ends with ':', add indent
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
@@ -335,16 +339,17 @@ class Editor(Frame):
                 (indent + self.spaces_per_tab.get()) * ' ')
         else:
             self.zone.insert(INSERT, '\n' + indent * ' ')
+
         self.print_line_nums()
         return 'break'
 
-    def insert_tab(self,event): 
+    def insert_tab(self,event):
         """Replace tabs by a number of spaces"""
         sel = self.zone.tag_ranges(SEL)
         if not sel:
             self.zone.insert(INSERT, ' ' * self.spaces_per_tab.get())
         else:
-            first_line,last_line = [int(self.zone.index(x).split('.')[0]) 
+            first_line,last_line = [int(self.zone.index(x).split('.')[0])
                 for x in sel]
             if self.zone.index(sel[1]).endswith('.0'):
                 last_line -= 1
@@ -354,7 +359,7 @@ class Editor(Frame):
 
     def ix2pos(self, ix):
         return [int(x) for x in self.zone.index(ix).split('.')]
-        
+
     def key_pressed(self,event):
         if event.keysym in ['Shift_R', 'Shift_L']:
             self.shift = True
@@ -370,7 +375,7 @@ class Editor(Frame):
         if not ext in ['.py', '.js']:
             return
         self.zone.tag_remove('matching_brace', '1.0', END)
-        
+
         for p in pos + '-1c', pos, pos + '+1c':
             px = self.zone.index(p)
             if 'string' in self.zone.tag_names(px):
@@ -390,7 +395,7 @@ class Editor(Frame):
                 break
         else:
             return
-        
+
         pattern = '[\\' + car + '\\' + match + ']'
         p = start
         while True:
@@ -398,7 +403,7 @@ class Editor(Frame):
             if backwards and re.match(pattern, self.zone.get(next_pos)):
                 p = next_pos
             else:
-                p = self.zone.search(pattern, next_pos, end_pos, 
+                p = self.zone.search(pattern, next_pos, end_pos,
                     regexp=True, backwards=backwards)
             if not p:
                 break
@@ -473,7 +478,7 @@ class Editor(Frame):
                 self.zone.delete(INSERT)
                 nb -= 1
         else:
-            first_line,last_line = [int(self.zone.index(x).split('.')[0]) 
+            first_line,last_line = [int(self.zone.index(x).split('.')[0])
                 for x in sel]
             if self.zone.index(sel[1]).endswith('.0'):
                 last_line -= 1
@@ -483,6 +488,17 @@ class Editor(Frame):
                     self.zone.delete(float(line))
                     nb -= 1
         return 'break'
+
+    def remove_trailing_whitespace(self):
+        """Removes trailing whitespaces."""
+        last_line = self.ix2pos(END)[0]
+        for i in range(1, last_line+1):
+            line = self.zone.get('{}.0linestart'.format(i),
+                '{}.0lineend'.format(i))
+            rstripped = line.rstrip()
+            if rstripped != line:
+                self.zone.delete('{}.{}'.format(i, len(rstripped)),
+                    '{}.0lineend'.format(i))
 
     def right_click(self,event):
         ext = os.path.splitext(docs[current_doc].file_name)[1]
@@ -587,7 +603,7 @@ class Editor(Frame):
             self.do_delayed = True
             # set a timer that will do a syntax highlight later
             # if nothing was entered in the meantime
-            self.zone.after(int(1000 * self.last_highlight_time), 
+            self.zone.after(int(1000 * self.last_highlight_time),
                 self.delayed_sh)
             return
         self.do_delayed = False
@@ -628,7 +644,7 @@ class Editor(Frame):
                             ltxt[i] = ' '
                         # highlight zone with matching tag
                         ix1 = '{}.{}'.format(*lc[pos])
-                        ix2 = '{}.{}'.format(*lc[min(end + len(stop), 
+                        ix2 = '{}.{}'.format(*lc[min(end + len(stop),
                             len(txt) - 1)])
                         self.zone.tag_add(ztype, ix1, ix2)
                         nb0 += 1
@@ -679,18 +695,18 @@ class Editor(Frame):
             if event.keysym in ['Shift_R', 'Shift_L']:
                 self.shift = False
             return
-        if not event.keysym in ['Up', 'Down', 'Left', 'Right', 'Next', 
+        if not event.keysym in ['Up', 'Down', 'Left', 'Right', 'Next',
             'Prior', 'Home', 'End', 'Control_L', 'Control_R']:
             self.syntax_highlight()
         self.mark_brace(INSERT)
         if not event.char:
             if (event.keysym in ['Next', 'Prior', 'BackSpace', 'Delete']
-                or self.current_line < self.first_visible
-                or self.current_line > self.last_visible):
+                    or self.current_line < self.first_visible
+                    or self.current_line > self.last_visible):
                 self.print_line_nums()
 
     def update_line_col(self, *args):
-        self.current_line, column = map(int, 
+        self.current_line, column = map(int,
             self.zone.index(INSERT).split('.'))
         self.label_line['text'] = "{: 5d}".format(self.current_line)
         self.label_column['text'] = "{: 3d}".format(column + 1)
@@ -765,7 +781,7 @@ class Searcher:
         pos = self.find_next()
         self.zone.tag_remove('found', 1.0, END)
         if pos:
-            self.zone.tag_add('found', pos, 
+            self.zone.tag_add('found', pos,
                 '{}+{}c'.format(pos,found_length.get()))
             self.search_pos = '{}+{}c'.format(pos, found_length.get())
             self.zone.see(pos)
@@ -811,7 +827,7 @@ class Searcher:
             self.zone.tag_remove('found', 1.0, END)
             self.zone.delete(pos,'{}+{}c'.format(pos, found_length.get()))
             self.zone.insert(pos,self.replacement.get())
-            self.search_pos = '{}+{}c'.format(pos, 
+            self.search_pos = '{}+{}c'.format(pos,
                 len(self.replacement.get()))
             self.editor.syntax_highlight()
             self.zone.tag_add('found', pos, '{}+{}c'.format(pos,
@@ -833,7 +849,7 @@ class Searcher:
             found += 1
             self.zone.delete(pos,'{}+{}c'.format(pos, found_length.get()))
             self.zone.insert(pos,self.replacement.get())
-            self.search_pos = '{}+{}c'.format(pos, 
+            self.search_pos = '{}+{}c'.format(pos,
                 len(self.replacement.get()))
         if found:
             self.zone.tag_remove('found', 1.0, END)
@@ -863,22 +879,11 @@ def check_file_change():
                     doc.last_modif = os.stat(doc.file_name).st_mtime
     root.after(1000, check_file_change)
 
-def check_if_changed(confirm=True):
-    if (docs[current_doc].editor.zone.get(1.0, '{}-1c'.format(END)) != 
-            docs[current_doc].text):
-        flag = True
-        if confirm:
-            fname = docs[current_doc].file_name
-            flag = tkinter.messagebox.askquestion("File modified",
-                "File {} changed. Save it ?".format(fname))
-        if flag != 'no':
-            save()
-
 def _close(*args):
     global current_doc
     if not docs:
         return
-    if (docs[current_doc].editor.zone.get(1.0, '{}-1c'.format(END)) != 
+    if (docs[current_doc].editor.zone.get(1.0, '{}-1c'.format(END)) !=
             docs[current_doc].text):
         flag = tkinter.messagebox.askquestion("File modified",
             "File {} changed. Save it ?".format(docs[current_doc].file_name))
@@ -966,7 +971,7 @@ def make_patterns(*args):
     import _patterns, imp
     imp.reload(_patterns)
     kw_pattern = '|'.join([r'\b{}\b'.format(kw) for kw in _patterns.keywords])
-    builtins_pattern = '|'.join([r'\b{}\b'.format(b) 
+    builtins_pattern = '|'.join([r'\b{}\b'.format(b)
         for b in _patterns.builtins])
     patterns['.py'] = [(kw_pattern, 'keyword'), (builtins_pattern, 'builtin')]
     patterns['.py']+=[(square_brackets, 'square_bracket'),
@@ -1027,9 +1032,9 @@ def open_module(file_name,force_reload=False,force_encoding=None):
         txt = open(file_name, 'r', encoding=file_encoding).read()
         txt = txt.replace('\t', ' ' * spaces_per_tab.get())
         linefeed.set(guess_linefeed(txt))
-        # internally use \n, otherwise tkinter adds an extra whitespace 
+        # internally use \n, otherwise tkinter adds an extra whitespace
         # for each line
-        txt = txt.replace('\r\n', '\n') 
+        txt = txt.replace('\r\n', '\n')
     except UnicodeDecodeError: # try another encoding
         new_enc = EncodingChooser(_('Encoding error'),
             _('encoding_err_msg').format(encoding_for_next_open.get()),
@@ -1038,7 +1043,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
             encoding_for_next_open.set(new_enc.result)
             return open_module(file_name, force_encoding=new_enc.result)
         return
-    if (len(docs) == 1 and not docs[0].has_name 
+    if (len(docs) == 1 and not docs[0].has_name
             and not docs[0].editor.zone.get(1.0, END).strip()):
         docs[0].editor.frame.pack_forget()
         del docs[0]
@@ -1257,7 +1262,7 @@ def search_in_files(*args):
                             flag_file = True
                         pos_in_src = pos + mo.start()
                         lnum = src[:pos_in_src].count('\n')
-                        zone.insert(END, '\n        line %4s : %s' 
+                        zone.insert(END, '\n        line %4s : %s'
                             %(lnum+1, lines[lnum][:100]))
                         pos += mo.start() + 1
                         rest = rest[mo.start() + 1:]
@@ -1271,16 +1276,16 @@ def set_fonts():
 
     root_w = root.winfo_screenwidth()
     fsize = -int(root_w / 100)
-    
+
     families = tkinter.font.families(root)
     if "Consolas" in families:
         family = "Consolas"
     else:
         family = "Courier New"
     font = tkinter.font.Font(family=family, size=fsize)
-    sh_font = tkinter.font.Font(family=family, size=int(1.5 * fsize), 
+    sh_font = tkinter.font.Font(family=family, size=int(1.5 * fsize),
         weight="bold")
-    
+
 def set_sizes():
     # file browser covers 15% of width
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
@@ -1301,31 +1306,13 @@ def set_linefeed(txt):
     else:
         return txt.replace(b'\n', b'\r\n')
 
-def show_trailing_whitespace():
-    """Show a report with trailing whitespaces in source code."""
-    if docs:
-        text = docs[current_doc].editor.zone.get(1.0, END)
-        lf = linefeed.get()[0]
-        sep = ['\n', '\r', '\r\n']['UMD'.find(lf)] # line separator
-        lines = text.split(sep)
-        report = _('trailing_whitespace') + '\n\n'
-        for i, line in enumerate(lines):
-            if not line.strip() and (' ' in line or len(line) > 1):
-                report += '{}: {}\n'.format(i+1, line)
-            if line.strip() and line.rstrip('\n\r').endswith(' '):
-                report += '{}: {}\n'.format(i+1, line)
-        top = Toplevel()
-        zone = ScrolledText(top)
-        zone.insert(END, report)
-        zone.pack()
-
 def switch(event):
     if not docs:
         return
     line_num = int(event.widget.index(CURRENT).split('.')[0]) - 1
     if not line_num in file_browser.doc_at_line:
         return
-    new_index = docs.index(file_browser.doc_at_line[line_num]) 
+    new_index = docs.index(file_browser.doc_at_line[line_num])
     if new_index == current_doc:
         return
     else:
@@ -1347,7 +1334,7 @@ def update_highlight(*args):
     # update syntax highlighting if option is reset by user
     if docs:
         docs[current_doc].editor.syntax_highlight()
-    
+
 encoding_for_next_open = StringVar(root)
 encoding_for_next_open.set('utf-8')
 python_version = StringVar(root)
@@ -1406,9 +1393,6 @@ menuEdition.add_command(label=_('search'), command=search, accelerator="F5")
 menuEdition.add_command(label=_('search in files'), command=search_in_files,
     accelerator="F6")
 menuEdition.add_command(label=_('replace'), command=replace, accelerator="F8")
-menuEdition.add_separator()
-menuEdition.add_command(label=_('trailing_whitespace'),
-    command=show_trailing_whitespace)
 menubar.add_cascade(menu=menuEdition, label=_('edit'))
 
 menuConfig = Menu(menubar, tearoff=0)
@@ -1445,22 +1429,22 @@ root.bind('<F8>', replace)
 root.protocol('WM_DELETE_WINDOW', close_window)
 
 class FileBrowser(tkinter.Text):
-    # simulate a listbox : with built-in listboxes, selection 
+    # simulate a listbox : with built-in listboxes, selection
     # disappears when a text is selected in editor
 
     def update(self):
         lines = [(os.path.basename(doc.file_name),doc) for doc in docs ]
         lines.sort(key=lambda x:x[0].lower())
-        self.doc_line = dict((line[1], i + 1) 
+        self.doc_line = dict((line[1], i + 1)
             for (i,line) in enumerate(lines))
-        self.doc_at_line = dict((i, line[1]) 
+        self.doc_at_line = dict((i, line[1])
             for (i, line) in enumerate(lines))
         self['state'] = NORMAL
         tkinter.Text.delete(self, 1.0, END)
         for line in lines:
             tkinter.Text.insert(self, END, line[0] + '\n')
         self['state'] = DISABLED
-        
+
     def select_clear(self, start, stop):
         self.tag_remove('selected', '{}.0'.format(start + 1),
             '{}.0lineend'.format(self.index(stop).split('.')[0]))
@@ -1468,12 +1452,12 @@ class FileBrowser(tkinter.Text):
     def select(self, doc):
         self.tag_remove('selected', 1.0, END)
         line = self.doc_line[doc]
-        self.tag_add('selected', '{}.0'.format(line), 
+        self.tag_add('selected', '{}.0'.format(line),
             '{}.0lineend'.format(line))
 
     def delete(self,doc):
         line = self.doc_line[doc]
-        tkinter.Text.delete(self,'{}.0'.format(line), 
+        tkinter.Text.delete(self,'{}.0'.format(line),
             '{}.0lineend'.format(line))
 
     def mark_if_changed(self):
@@ -1507,7 +1491,7 @@ file_browser.pack(side=LEFT, anchor=NW, expand=YES, fill=Y)
 file_browser.bind('<ButtonRelease>', switch)
 file_browser.bind('<Button-3>', close_dialog)
 
-root.geometry('{}x{}'.format(root.winfo_screenwidth(), 
+root.geometry('{}x{}'.format(root.winfo_screenwidth(),
     root.winfo_screenheight()))
 set_sizes()
 
