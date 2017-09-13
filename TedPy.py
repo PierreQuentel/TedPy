@@ -1204,7 +1204,8 @@ def save(*args):
 def save_as():
     if not docs:
         return
-    file_name = asksaveasfilename(initialfile=docs[current_doc].file_name,
+    file_name = asksaveasfilename(
+        initialfile=os.path.basename(docs[current_doc].file_name),
         initialdir=default_dir())
     if file_name:
         doc = docs[current_doc]
