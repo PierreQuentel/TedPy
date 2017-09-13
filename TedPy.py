@@ -722,11 +722,10 @@ class Editor(Frame):
             delta = -event.delta / wheel_delta
             self.slide('scroll', int(delta), 'units')
         return "break" # don't propagate
-    
+
     def wheel2(self, event):
         delta = -1 if event.num == 4 else 1
         self.slide('scroll', delta, 'units')
-            
 
 
 class Searcher:
@@ -746,12 +745,12 @@ class Searcher:
         if found:
             self.search_pos = found[1]
 
-    def search(self,repl=False):
+    def search(self, repl=False, files=False):
         selected = self.zone.tag_ranges(SEL)
         if selected: # tag selection (otherwise select background is lost)
             self.zone.tag_add('selection', *selected)
         self.top = Toplevel(root)
-        self.top.title(_('search'))
+        self.top.title(_('search' if not files else 'search in files'))
         self.top.transient(root)
         self.top.protocol('WM_DELETE_WINDOW', self.end_search)
         self.searched = Entry(self.top, relief=GROOVE, borderwidth=4)
@@ -766,14 +765,18 @@ class Searcher:
             variable=full_word).pack(anchor=W)
         Checkbutton(f_buttons, text=_('case insensitive'),
             variable=case_insensitive).pack(anchor=W)
-        Checkbutton(f_buttons, text=_('regular expression'),
-            variable=regular_expression).pack(anchor=W)
+        if not files:
+            Checkbutton(f_buttons, text=_('regular expression'),
+                variable=regular_expression).pack(anchor=W)
         f_buttons.pack(side=LEFT)
         if repl:
             Button(self.top, text=_('replace next'),
                 command=self.make_replace).pack()
             Button(self.top,text=_('replace all'),
                 command=self.make_replace_all).pack()
+        elif files:
+            Button(self.top, text=_('search'),
+                command=self.make_search_files).pack()
         else:
             Button(self.top, text=_('search'),
                 command=self.make_search).pack()
@@ -797,6 +800,55 @@ class Searcher:
         else:
             tkinter.messagebox.showinfo(title=_('search'),
                 message=_('Not found'))
+
+    def make_search_files(self):
+        txt = self.searched.get()
+        pattern = re.sub(r'([$\.()\[\]])', r'\\\1', txt)
+        if full_word.get():
+            for car in '[](){}$^':
+                pattern = pattern.replace(car, '\\'+car)
+            pattern = r'(^|[^\w\d_$]){}($|[^\w\d_$])'.format(pattern)
+        flags = 0
+        if case_insensitive.get():
+            flags = re.I
+        top = Toplevel()
+        zone = ScrolledText(top, width=120, height=40)
+        zone.pack()
+        top.title(_('search_in_files').format(default_dir()))
+        zone.insert(END, _('string').format(txt))
+        for dirpath, dirnames, filenames in os.walk(default_dir()):
+            flag_dir = False
+            if '.hg' in dirnames:
+                dirnames.remove('.hg')
+            for fname in filenames:
+                if fname.endswith(('.gz', '.zip')):
+                    continue
+                flag_file = False
+                full_path = os.path.join(dirpath, fname)
+                src = open(full_path, encoding='iso-8859-1').read()
+                rest = src
+                lines = src.split('\n')
+                pos = 0
+                while True:
+                    mo = re.search(pattern, rest, flags=flags)
+                    if mo:
+                        if not flag_dir:
+                            zone.insert(END,'\n\n' + dirpath)
+                            flag_dir = True
+                        if not flag_file:
+                            zone.insert(END, '\n   {}\n'.format(
+                                full_path[len(default_dir()) + 1:]))
+                            flag_file = True
+                        pos_in_src = pos + mo.start()
+                        lnum = src[:pos_in_src].count('\n')
+                        zone.insert(END, '\n        line %4s : %s'
+                            %(lnum+1, lines[lnum][:100]))
+                        pos += mo.start() + 1
+                        rest = rest[mo.start() + 1:]
+                    else:
+                        if flag_file:
+                            zone.insert(END, '\n')
+                        break
 
     def find_next(self, **kw):
         pattern = self.searched.get()
@@ -827,6 +879,9 @@ class Searcher:
 
     def replace(self):
         self.search(repl=True)
+
+    def search_in_files(self):
+        self.search(files=True)
 
     def make_replace(self):
         self.set_search_boundaries()
@@ -1236,48 +1291,8 @@ def search(*args):
         Searcher().search()
 
 def search_in_files(*args):
-    txt = tkinter.simpledialog.askstring(_('search in files'), 'search')
-    if txt:
-        pattern = re.sub(r'([$\.()\[\]])', r'\\\1', txt)
-        pattern = r'{}'.format(pattern)
-        top = Toplevel()
-        zone = ScrolledText(top, width=120, height=40)
-        zone.pack()
-        top.title(_('search_in_files').format(default_dir()))
-        zone.insert(END, _('string').format(txt))
-        for dirpath, dirnames, filenames in os.walk(default_dir()):
-            flag_dir = False
-            if '.hg' in dirnames:
-                dirnames.remove('.hg')
-            for fname in filenames:
-                if fname.endswith('.gz'):
-                    continue
-                flag_file = False
-                full_path = os.path.join(dirpath, fname)
-                src = open(full_path, encoding='iso-8859-1').read()
-                rest = src
-                lines = src.split('\n')
-                pos = 0
-                while True:
-                    mo = re.search(pattern, rest)
-                    if mo:
-                        if not flag_dir:
-                            zone.insert(END,'\n\n' + dirpath)
-                            flag_dir = True
-                        if not flag_file:
-                            zone.insert(END, '\n   {}\n'.format(
-                                full_path[len(default_dir()) + 1:]))
-                            flag_file = True
-                        pos_in_src = pos + mo.start()
-                        lnum = src[:pos_in_src].count('\n')
-                        zone.insert(END, '\n        line %4s : %s'
-                            %(lnum+1, lines[lnum][:100]))
-                        pos += mo.start() + 1
-                        rest = rest[mo.start() + 1:]
-                    else:
-                        if flag_file:
-                            zone.insert(END, '\n')
-                        break
+    if docs:
+        Searcher().search_in_files()
 
 def set_fonts():
     global font, sh_font
