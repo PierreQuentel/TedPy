@@ -145,7 +145,8 @@ class Editor(Frame):
     def __init__(self):
         frame = Frame(panel, relief=GROOVE, borderwidth=4)
 
-        bar_bg = '#666'
+        bar_bg = colors['bar']
+        fg = colors['color']
         self.font = font
 
         shortcuts = Frame(frame, bg=bar_bg)
@@ -162,12 +163,11 @@ class Editor(Frame):
         widget.bind('<Button-1>', _close)
         widget.pack(side=RIGHT, anchor=E)
         Label(shortcuts, text='    ', bg=bar_bg).pack(side=RIGHT)
-        self.label_line = Label(shortcuts, font=font, fg='#fff',
-            bg=bar_bg)
-        self.label_column = Label(shortcuts, font=font, fg='#fff',
+        self.label_line = Label(shortcuts, font=font, fg=fg, bg=bar_bg)
+        self.label_column = Label(shortcuts, font=font, fg=fg,
             bg=bar_bg)
         self.label_column.pack(side=RIGHT)
-        Label(shortcuts, text=' | ', bg=bar_bg, fg='#fff').pack(side=RIGHT)
+        Label(shortcuts, text=' | ', bg=bar_bg, fg=fg).pack(side=RIGHT)
         self.label_line.pack(side=RIGHT)
         self.encoding = StringVar()
         enc_label = Label(shortcuts, textvariable=self.encoding,
@@ -175,7 +175,7 @@ class Editor(Frame):
         enc_label.bind('<Button-1>', self.set_encoding)
         enc_label.pack(side=RIGHT)
         Label(shortcuts, text=_('encoding'), bg=bar_bg,
-            fg='#fff').pack(side=RIGHT)
+            fg=fg).pack(side=RIGHT)
 
         self.spaces_per_tab = IntVar()
         self.spaces_per_tab.set(4)
@@ -184,15 +184,15 @@ class Editor(Frame):
         spaces_per_tab_label.bind('<Button-1>', self.set_spaces_per_tab)
         spaces_per_tab_label.pack(side=RIGHT)
         Label(shortcuts, text=_('spaces_per_tab'), bg=bar_bg,
-            fg='#fff').pack(side=RIGHT)
+            fg=fg).pack(side=RIGHT)
 
         shortcuts.pack(fill=BOTH)
         bg = colors['bg']
 
         zone = ScrolledText(frame, width=self.text_width(),
             font=font, wrap=NONE, relief=FLAT, undo=True,
-            autoseparators=True, bg=bg, foreground=colors['color'],
-            insertbackground='white', selectbackground=colors['select'])
+            autoseparators=True, bg=bg, fg=fg,
+            insertbackground=fg, selectbackground=colors['select'])
         zone.vbar.config(command=self.slide)
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
         text_height = int(int(root.winfo_screenheight() * 0.92) / line_height)
@@ -367,10 +367,18 @@ class Editor(Frame):
         return [int(x) for x in self.zone.index(ix).split('.')]
 
     def key_pressed(self,event):
+        self.delete_end = False
         if event.keysym in ['Shift_R', 'Shift_L']:
             self.shift = True
         elif event.keysym in ['Control_L', 'Control_R']:
             self.control = True
+        elif event.keysym == 'Delete':
+            # if delete at the end of a line, remove trailing whitespaces
+            # of next line
+            pos = self.ix2pos(INSERT)
+            lineend = self.ix2pos('{}.0'.format(pos[0]) + 'lineend')[1]
+            if pos[1] == lineend:
+                self.delete_end = True
 
     def mark_brace(self, pos):
         if not syntax_highlight.get():
@@ -685,7 +693,7 @@ class Editor(Frame):
         except:
             pass
 
-    def update(self,event):
+    def update(self, event):
         if event.keysym == 'Tab':
             return 'break'
         if self.control:
@@ -710,6 +718,10 @@ class Editor(Frame):
                     or self.current_line < self.first_visible
                     or self.current_line > self.last_visible):
                 self.print_line_nums()
+            if self.delete_end:
+                # delete at line end : remove next line indentation
+                while self.zone.get(INSERT) == ' ':
+                    self.zone.delete(INSERT)
 
     def update_line_col(self, *args):
         self.current_line, column = map(int,
