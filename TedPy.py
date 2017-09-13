@@ -277,6 +277,7 @@ class Editor(Frame):
         self.print_line_nums()
 
     def click(self,event):
+        global close_menu
         self.zone.tag_remove('selection', 1.0, END)
         self.zone.tag_remove('found', 1.0, END)
         self.mark_brace(CURRENT)
@@ -284,6 +285,9 @@ class Editor(Frame):
         if hasattr(self, 'browser'):
             self.browser.unpost()
             delattr(self, 'browser')
+        if close_menu is not None:
+            close_menu.unpost()
+            close_menu = None
 
     def delayed_sh(self):
         # delayed syntax highlighting, launched by a timer
@@ -965,17 +969,19 @@ def _close(*args):
         current_doc = None
         root.title('TedPy')
 
+close_menu = None
+
 def close_dialog(event):
-    global current_doc
+    global current_doc, close_menu
     if not docs:
         return
     line_num = int(event.widget.index(CURRENT).split('.')[0]) - 1
     if not line_num in file_browser.doc_at_line:
         return
     doc_index = docs.index(file_browser.doc_at_line[line_num])
-    browser = Menu(root, tearoff=0, relief=FLAT, background='#ddd')
-    browser.add_command(label=_('close'), command=_close)
-    browser.post(event.x_root, event.y_root - 10)
+    close_menu = Menu(root, tearoff=0, relief=FLAT, background='#ddd')
+    close_menu.add_command(label=_('close'), command=_close)
+    close_menu.post(event.x_root, event.y_root - 10)
 
 def close_window(*args):
     while docs:
