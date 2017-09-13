@@ -2,8 +2,11 @@
 import os
 import json
 
+this_dir = os.path.dirname(__file__)
+
 language = 'fr'
-with open("translations_{}.json".format(language), encoding="utf-8") as fobj:
+tr_path = os.path.join(this_dir, "translations_{}.json".format(language))
+with open(tr_path, encoding="utf-8") as fobj:
     translations = json.load(fobj)
 
 def translate(src):
