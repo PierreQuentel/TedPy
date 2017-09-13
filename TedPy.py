@@ -17,7 +17,7 @@ import tkinter.simpledialog
 import tkinter.font
 from tkinter.scrolledtext import ScrolledText
 
-version = "1.0"
+this_dir = os.path.dirname(__file__)
 
 import translation
 translation.language = 'fr'
@@ -28,7 +28,7 @@ encodings = ['ascii', 'iso-8859-1', 'latin-1', 'utf-8', 'cp850']
 
 # config
 ini = configparser.ConfigParser(allow_no_value=True)
-ini.read(['config.ini'],encoding='utf-8')
+ini.read([os.path.join(this_dir, 'config.ini')], encoding='utf-8')
 if ini.has_section('versions'): # Python versions
     for vnum in ini.options('versions'):
         python_versions.append((vnum.capitalize(),ini.get('versions',vnum)))
@@ -987,7 +987,8 @@ def default_dir():
     if docs and docs[current_doc].has_name:
         return os.path.dirname(docs[current_doc].file_name)
     try:
-        return os.path.dirname(open('history.txt').readlines()[-1])
+        with open(h_path, encoding="utf-8") as f:
+            return f.readlines()[-1]
     except IOError:
         return os.getcwd()
 
@@ -1222,17 +1223,17 @@ def save_history(doc):
     file_name = doc.file_name
     try:
         history = [os.path.normpath(line.strip())
-            for line in open('history.txt').readlines()
+            for line in open(h_path, encoding="utf-8").readlines()
             if line.strip() and not line.strip() == file_name] + [file_name]
     except IOError:
-        out = open('history.txt', 'w')
+        out = open(h_path, 'w', encoding="utf-8")
         out.write(file_name+'\n')
         out.close()
         menuModule.add_separator()
         menuModule.add_command(label=file_name,
             command=lambda file_name=file_name:open_module(file_name))
         return
-    with open('history.txt','w') as out:
+    with open(h_path, 'w', encoding="utf-8") as out:
         for line in history[-history_size:]:
             out.write(os.path.normpath(line)+'\n')
     # remove entry in menu
@@ -1396,9 +1397,10 @@ menuModule.add_command(label=_('run'), accelerator="Ctrl+R", command=run)
 nb_menu_items = menuModule.index(END)
 
 # history of open files
+h_path = os.path.join(this_dir, "history.txt")
 try:
     history = []
-    for line in open('history.txt').readlines():
+    for line in open(h_path, encoding="utf-8").readlines():
         path = os.path.normpath(line.strip())
         if not path in history:
             history.append(path)
