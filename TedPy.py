@@ -974,7 +974,7 @@ def close_dialog(event):
         return
     doc_index = docs.index(file_browser.doc_at_line[line_num])
     browser = Menu(root, tearoff=0, relief=FLAT, background='#ddd')
-    browser.add_command(label='close', command=_close)
+    browser.add_command(label=_('close'), command=_close)
     browser.post(event.x_root, event.y_root - 10)
 
 def close_window(*args):
