@@ -205,7 +205,7 @@ class Editor(Frame):
 
         line_nums=Text(frame, width=3, background=bg, font=font,
             selectbackground='#fff', foreground='#808080',
-            relief=FLAT, state=DISABLED)
+            highlightthickness=0, relief=FLAT, state=DISABLED)
         line_nums.bind('<B1-Motion>', lambda ev: 'break')
         line_nums.pack(side=LEFT, fill=BOTH)
 
