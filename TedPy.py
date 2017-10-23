@@ -117,7 +117,7 @@ class Document:
             num = 1
             while True:
                 file_name = os.path.join(default_dir(),
-                    "module%s.%s" %(num, ext))
+                    "module{}.{}".format(num, ext))
                 if not os.path.exists(file_name):
                     break
                 num += 1
@@ -519,7 +519,7 @@ class Editor(Frame):
         if ext == '.py':
             kws = ['def', 'class']
         elif ext == '.js':
-            kws = ['function']
+            kws = ['function', r'.*=\s*function']
         else:
             return
         current = self.zone.index(CURRENT)
@@ -529,7 +529,7 @@ class Editor(Frame):
             lines = [x.rstrip() for x in self.zone.get(1.0, END).split('\n')]
             for i,line in enumerate(lines):
                 for kw in kws:
-                    if line.lstrip().startswith(kw + ' '):
+                    if re.match(kw, line.lstrip()):
                         label, num = line[:line.find('(')], i + 1
                         targets.append((label, num))
             browser = Menu(root, tearoff=0, relief=FLAT, background='#d0d7e2')
@@ -555,8 +555,8 @@ class Editor(Frame):
                 stopindex=current + 'lineend') or current + 'lineend'
             word = self.zone.get(start, end)
             kwp = '|'.join(kws)
-            pos = self.zone.search(r'^ *(%s)\s+%s' %(kwp, word), 1.0,
-                regexp=True)
+            pattern = r'^ *({})\s+{}\s*\('.format(kwp, word)
+            pos = self.zone.search(pattern, 1.0, regexp=True)
             # menu to reach a class, method or function
             if pos:
                 label = self.zone.get(pos, pos + 'lineend')
@@ -819,7 +819,7 @@ class Searcher:
 
     def make_search_files(self):
         txt = self.searched.get()
-        pattern = re.sub(r'([$\.()\[\]])', r'\\\1', txt)
+        pattern = txt
         if full_word.get():
             for car in '[](){}$^':
                 pattern = pattern.replace(car, '\\'+car)
@@ -859,8 +859,8 @@ class Searcher:
                         lnum = src[:pos_in_src].count('\n')
                         zone.insert(END, '\n        line %4s : %s'
                             %(lnum+1, lines[lnum][:100]))
-                        pos += mo.start() + 1
-                        rest = rest[mo.start() + 1:]
+                        pos += mo.start() + len(txt)
+                        rest = rest[mo.start() + len(txt):]
                     else:
                         if flag_file:
                             zone.insert(END, '\n')
@@ -1006,7 +1006,7 @@ def default_dir():
         return os.path.dirname(docs[current_doc].file_name)
     try:
         with open(h_path, encoding="utf-8") as f:
-            return f.readlines()[-1]
+            return os.path.dirname(f.readlines()[-1])
     except IOError:
         return os.getcwd()
 
