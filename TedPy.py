@@ -1096,7 +1096,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
         # search a line with encoding (see PEP 0263)
         src = open(file_name)
         try:
-            head = src.readline()+src.readline()
+            head = src.readline() + src.readline()
             file_encoding = py_encoding(head)
         except UnicodeDecodeError:
             pass
@@ -1167,7 +1167,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     new_doc.editor.zone.focus()
 
 def py_encoding(head):
-    mo = re.search('(?s)coding[:=]\s*([-\w.]+)',head, re.M)
+    mo = re.search('(?s)coding\s*[:=]\s*([-\w.]+)',head, re.M)
     if mo:
         return mo.groups()[0]
 
