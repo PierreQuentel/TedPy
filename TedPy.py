@@ -38,6 +38,7 @@ if ini.has_section('encodings'):
             encodings.append(encoding)
 
 colors = {k: ini.get('colors', k) for k in ini.options('colors')}
+fg, bg = colors['color'], colors['bg']
 
 # parameters
 history_size = 8 # number of files in history
@@ -146,7 +147,6 @@ class Editor(Frame):
         frame = Frame(panel, relief=GROOVE, borderwidth=4)
 
         bar_bg = colors['bar']
-        fg = colors['color']
         self.font = font
 
         shortcuts = Frame(frame, bg=bar_bg)
@@ -187,7 +187,6 @@ class Editor(Frame):
             fg=fg).pack(side=RIGHT)
 
         shortcuts.pack(fill=BOTH)
-        bg = colors['bg']
 
         zone = ScrolledText(frame, width=self.text_width(),
             font=font, wrap=NONE, relief=FLAT, undo=True,
@@ -282,9 +281,7 @@ class Editor(Frame):
         self.zone.tag_remove('found', 1.0, END)
         self.mark_brace(CURRENT)
         # if there is a menu with all functions and classes, unpost it
-        if hasattr(self, 'browser'):
-            self.browser.unpost()
-            delattr(self, 'browser')
+        self.remove_functions_browser()
         if close_menu is not None:
             close_menu.unpost()
             close_menu = None
@@ -294,8 +291,10 @@ class Editor(Frame):
         if docs and self.do_delayed:
             self.syntax_highlight()
 
-    def goto(self, *args):
-        line_num = target.get()
+    def goto(self, evt):
+        browser_line = int(evt.widget.index(CURRENT).split('.')[0])
+        line_num = self.function_line_nums[browser_line - 1]
+        self.browser.destroy()
         self.zone.focus()
         self.zone.mark_set(INSERT, '{}.0'.format(line_num))
         self.zone.see(INSERT)
@@ -481,6 +480,11 @@ class Editor(Frame):
         except:
             pass
 
+    def remove_functions_browser(self):
+        if hasattr(self, "browser"):
+            self.browser.destroy()
+            delattr(self, "browser")
+
     def remove_tab(self,event):
         """Shift selected zone to the left by the number of spaces specified
         in spaces_per_tab
@@ -515,6 +519,7 @@ class Editor(Frame):
                     '{}.0lineend'.format(i))
 
     def right_click(self,event):
+        self.remove_functions_browser()
         ext = os.path.splitext(docs[current_doc].file_name)[1]
         if ext == '.py':
             kws = ['def', 'class']
@@ -527,19 +532,23 @@ class Editor(Frame):
             # menu to reach all functions, classes and methods in the script
             targets = []
             lines = [x.rstrip() for x in self.zone.get(1.0, END).split('\n')]
-            for i,line in enumerate(lines):
+            for i, line in enumerate(lines):
                 for kw in kws:
                     if re.match(kw, line.lstrip()):
                         label, num = line[:line.find('(')], i + 1
                         targets.append((label, num))
-            browser = Menu(root, tearoff=0, relief=FLAT, background='#d0d7e2')
+            self.function_line_nums = []
+            self.browser = Toplevel()
+            self.browser.overrideredirect(1)
+            self.browser.geometry('+{}+{}'.format(event.x, event.y))
+            text = ScrolledText(self.browser, bg=colors['right_click_menu'],
+                cursor="arrow", fg=fg, font=font, padx=5,
+                width=int(self.text_width() * 0.3))
             for label, num in targets:
-                browser.add_radiobutton(label=label, variable=target,
-                    value=num, command=self.goto)
-                target.set(None) # to deselect the button
-            browser.yposition(10)
-            browser.post(event.x_root, event.y_root)
-            self.browser = browser
+                text.insert(END, label + '\n')
+                self.function_line_nums.append(num)
+            text.pack()
+            text.bind('<Button-1>', self.goto)
         else:
             if not self.zone.get(current + 'linestart', current).strip():
                 return # click on indentation
