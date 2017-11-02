@@ -528,27 +528,15 @@ class Editor(Frame):
         else:
             return
         current = self.zone.index(CURRENT)
+        targets = []
         if current == self.zone.index(current + 'lineend'):
             # menu to reach all functions, classes and methods in the script
-            targets = []
             lines = [x.rstrip() for x in self.zone.get(1.0, END).split('\n')]
             for i, line in enumerate(lines):
                 for kw in kws:
                     if re.match(kw, line.lstrip()):
                         label, num = line[:line.find('(')], i + 1
                         targets.append((label, num))
-            self.function_line_nums = []
-            self.browser = Toplevel()
-            self.browser.overrideredirect(1)
-            self.browser.geometry('+{}+{}'.format(event.x, event.y))
-            text = ScrolledText(self.browser, bg=colors['right_click_menu'],
-                cursor="arrow", fg=fg, font=font, padx=5,
-                width=int(self.text_width() * 0.3))
-            for label, num in targets:
-                text.insert(END, label + '\n')
-                self.function_line_nums.append(num)
-            text.pack()
-            text.bind('<Button-1>', self.goto)
         else:
             if not self.zone.get(current + 'linestart', current).strip():
                 return # click on indentation
@@ -570,11 +558,24 @@ class Editor(Frame):
             if pos:
                 label = self.zone.get(pos, pos + 'lineend')
                 num = int(pos.split('.')[0])
-                browser = Menu(root, tearoff=0, relief=FLAT,
-                    background=colors['right_click_menu'])
-                browser.add_radiobutton(label=label, variable=target,
-                    value=num, command=self.goto)
-                browser.post(event.x_root, event.y_root + 5)
+                targets = [(label, num)]
+
+        if targets:
+            self.function_line_nums = []
+            self.browser = Toplevel()
+            self.browser.overrideredirect(1)
+            self.browser.geometry('+{}+{}'.format(event.x_root, event.y_root))
+            if len(targets) < 20:
+                text = Text(self.browser, height=len(targets))
+            else:
+                text = ScrolledText(self.browser, height=20)
+            text.config(bg=colors['right_click_menu'], cursor="arrow", fg=fg,
+                font=font, padx=5, width=int(self.text_width() * 0.3))
+            for label, num in targets:
+                text.insert(END, label + '\n')
+                self.function_line_nums.append(num)
+            text.pack()
+            text.bind('<Button-1>', self.goto)
 
     def set_control(self,event):
         self.control = True
@@ -1327,7 +1328,7 @@ def set_fonts():
     global font, sh_font
 
     root_w = root.winfo_screenwidth()
-    fsize = -int(root_w / 100)
+    fsize = -int(root_w / 90)
 
     families = tkinter.font.families(root)
     if "Consolas" in families:
@@ -1463,10 +1464,12 @@ menuLinefeed = Menu(menuConfig,tearoff=0)
 for lf in ['Unix: \\n', 'DOS: \\r\\n', 'Mac: \\r']:
     menuLinefeed.add_radiobutton(label = lf, variable=linefeed)
 menuConfig.add_cascade(menu=menuLinefeed, label=_('linefeed'))
+
 menuInterpreter = Menu(menuConfig,tearoff=0)
 for py_ver,py_int in python_versions:
     menuInterpreter.add_radiobutton(label=py_ver, variable=python_version)
 menuConfig.add_cascade(menu=menuInterpreter, label=_('Python version'))
+
 menuConfig.add_checkbutton(label=_('highlight'), variable=syntax_highlight)
 menubar.add_cascade(menu=menuConfig, label=_('config'))
 
