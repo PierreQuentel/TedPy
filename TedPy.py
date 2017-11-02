@@ -23,7 +23,8 @@ import translation
 translation.language = 'fr'
 _ = translation.translate
 
-python_versions = [ ('Python %s.%s' %sys.version_info[:2], sys.executable)]
+python_versions = [('Python {}.{}'.format(*sys.version_info[:2]),
+    sys.executable)]
 encodings = ['ascii', 'iso-8859-1', 'latin-1', 'utf-8', 'cp850']
 
 # config
@@ -31,7 +32,7 @@ ini = configparser.ConfigParser(allow_no_value=True)
 ini.read([os.path.join(this_dir, 'config.ini')], encoding='utf-8')
 if ini.has_section('versions'): # Python versions
     for vnum in ini.options('versions'):
-        python_versions.append((vnum.capitalize(),ini.get('versions',vnum)))
+        python_versions.append((vnum.capitalize(), ini.get('versions', vnum)))
 if ini.has_section('encodings'):
     for encoding in ini.options('encodings'):
         if not encoding in encodings:
@@ -58,7 +59,7 @@ curly_braces = r'[\{\}]'
 parenthesis = r'[\(\)]'
 patterns = {'.html':[], '.js':[]} # for Python, set by make_patterns()
 for lang in patterns:
-    patterns[lang]+=[(square_brackets, 'square_bracket'),
+    patterns[lang] += [(square_brackets, 'square_bracket'),
         (parenthesis, 'parenthesis'), (curly_braces, 'curly_brace')]
 from js_keywords import js_keywords
 js_keywords = [(r'\b'+kw+r'\b') for kw in js_keywords]
@@ -91,9 +92,9 @@ class HTMLParser(html.parser.HTMLParser):
         else:
             y1 = len(lines[-1])
         self.zone.tag_add('keyword', '{}.{}'.format(x0, y0),
-            '{}.{}'.format(x0, y0+1+len(tag)))
+            '{}.{}'.format(x0, y0 + 1 + len(tag)))
         self.zone.tag_add('comment',
-            '{}.{}'.format(x0, y0+1+len(tag)),
+            '{}.{}'.format(x0, y0 + 1 + len(tag)),
             '{}.{}'.format(x1, y1))
         self.zone.tag_add('keyword', '{}.{}'.format(x1, y1)+'-1c',
             '{}.{}'.format(x1, y1))
@@ -102,7 +103,7 @@ class HTMLParser(html.parser.HTMLParser):
         x, y = self.getpos()
         p0 = '{}.{}'.format(x, y)
         closing_pos = self.zone.search('>', p0)
-        self.zone.tag_add('keyword', p0, closing_pos+'+1c')
+        self.zone.tag_add('keyword', p0, closing_pos + '+1c')
 
 
 class EncodingError(Exception):
@@ -135,7 +136,7 @@ class EncodingChooser(tkinter.simpledialog._QueryDialog):
         for i,enc in enumerate(enc for enc in encodings
                 if enc != self.initialvalue.get()):
             Radiobutton(master, text=enc, variable=self.initialvalue,
-                value=enc, padx=15).grid(row=1+i, sticky=W)
+                value=enc, padx=15).grid(row=1 + i, sticky=W)
 
     def getresult(self):
         return self.initialvalue.get()
@@ -151,8 +152,8 @@ class Editor(Frame):
 
         shortcuts = Frame(frame, bg=bar_bg)
         for (src,callback) in [('⤶', self.undo), ('⤷', self.redo),
-            ('≡', self.change_wrap), ('↑', self.change_size),
-            ('↓', self.change_size)]:
+                ('≡', self.change_wrap), ('↑', self.change_size),
+                ('↓', self.change_size)]:
             widget = Label(shortcuts, text=src, relief=RIDGE, bg='#FFF',
                 foreground='#000', font=sh_font)
             widget['width'] = 2
@@ -164,8 +165,7 @@ class Editor(Frame):
         widget.pack(side=RIGHT, anchor=E)
         Label(shortcuts, text='    ', bg=bar_bg).pack(side=RIGHT)
         self.label_line = Label(shortcuts, font=font, fg=fg, bg=bar_bg)
-        self.label_column = Label(shortcuts, font=font, fg=fg,
-            bg=bar_bg)
+        self.label_column = Label(shortcuts, font=font, fg=fg, bg=bar_bg)
         self.label_column.pack(side=RIGHT)
         Label(shortcuts, text=' | ', bg=bar_bg, fg=fg).pack(side=RIGHT)
         self.label_line.pack(side=RIGHT)
@@ -190,7 +190,7 @@ class Editor(Frame):
 
         zone = ScrolledText(frame, width=self.text_width(),
             font=font, wrap=NONE, relief=FLAT, undo=True,
-            autoseparators=True, bg=bg, fg=fg,
+            autoseparators=True, bg=bg, fg=fg, selectforeground=fg,
             insertbackground=fg, selectbackground=colors['select'])
         zone.vbar.config(command=self.slide)
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
@@ -225,10 +225,10 @@ class Editor(Frame):
         zone.bind('<Home>', self.home)
 
         for tag in ('comment', 'string', 'keyword', 'builtin', 'parenthesis',
-            'curly_brace', 'square_bracket', 'too_long'):
+                'curly_brace', 'square_bracket', 'too_long'):
             zone.tag_config(tag, foreground=colors[tag])
 
-        zone.tag_config('found', foreground=colors['bg'], background='white')
+        zone.tag_config('found', foreground=bg, background=fg)
         zone.tag_config('selection', background=zone['selectbackground'])
         zone.tag_config('matching_brace', background="#444",
             foreground='#ff6')
@@ -306,9 +306,9 @@ class Editor(Frame):
             INSERT)
         if not left.strip(): # only spaces at the left of INSERT
             return
-        nbspaces = len(left)-len(left.lstrip())
+        nbspaces = len(left) - len(left.lstrip())
         self.zone.mark_set(INSERT, '{}linestart+{}c'.format(
-             self.zone.index(INSERT),nbspaces))
+             self.zone.index(INSERT), nbspaces))
         return 'break'
 
     def html_highlight(self):
@@ -399,7 +399,7 @@ class Editor(Frame):
                 match, start, nb = ')]}'['([{'.index(car)], px, 1
                 incr, backwards, end_pos = "+1c", False, END
                 break
-            elif p in [pos, pos+"-1c"] and car in '}])':
+            elif p in [pos, pos + "-1c"] and car in '}])':
                 if p == pos + "-1c" and self.zone.get(pos) in '([{}])':
                     continue
                 # closing brace : look for opening (before)
@@ -510,7 +510,7 @@ class Editor(Frame):
     def remove_trailing_whitespace(self):
         """Removes trailing whitespaces."""
         last_line = self.ix2pos(END)[0]
-        for i in range(1, last_line+1):
+        for i in range(1, last_line + 1):
             line = self.zone.get('{}.0linestart'.format(i),
                 '{}.0lineend'.format(i))
             rstripped = line.rstrip()
@@ -538,11 +538,14 @@ class Editor(Frame):
                         label, num = line[:line.find('(')], i + 1
                         targets.append((label, num))
         else:
+            # right-click on indentation : ignore
             if not self.zone.get(current + 'linestart', current).strip():
-                return # click on indentation
+                return
+            # right-click on string, comment, keyword : ignore
             if set(self.zone.tag_names(current)) & \
                 set(['string', 'comment', 'keyword', 'def_class']):
                 return
+            # right-click on identifier : search it in the document
             start = self.zone.search(r'[^\w]', CURRENT, backwards=True,
                 stopindex=current + 'linestart', regexp=True) \
                 or current + 'linestart'
@@ -753,29 +756,31 @@ class Editor(Frame):
         delta = -1 if event.num == 4 else 1
         self.slide('scroll', delta, 'units')
 
-
 class Searcher:
+    """Class for search dialogs."""
 
-    def __init__(self):
-        if docs:
-            self.zone = docs[current_doc].editor.zone
-            self.editor = docs[current_doc].editor
+    def editor(self):
+        return docs[current_doc].editor
+
+    def zone(self):
+        return docs[current_doc].editor.zone
 
     def set_search_boundaries(self):
-        selected = self.zone.tag_ranges(SEL)
+        selected = self.zone().tag_ranges(SEL)
         if selected: # search in selection
             self.search_pos, self.search_end = selected
-        else:
+        else: # search in whole document
             self.search_pos, self.search_end = INSERT, None
-        found = self.zone.tag_ranges('found')
+        found = self.zone().tag_ranges('found')
         if found:
             self.search_pos = found[1]
 
     def search(self, repl=False, files=False):
-        selected = self.zone.tag_ranges(SEL)
+        selected = self.zone().tag_ranges(SEL)
         if selected: # tag selection (otherwise select background is lost)
-            self.zone.tag_add('selection', *selected)
+            self.zone().tag_add('selection', *selected)
         self.top = Toplevel(root)
+        root.search = self.top
         self.top.title(_('search' if not files else 'search in files'))
         self.top.transient(root)
         self.top.protocol('WM_DELETE_WINDOW', self.end_search)
@@ -809,20 +814,20 @@ class Searcher:
         case_insensitive.set(False)
 
     def end_search(self):
-        self.zone.tag_remove('selection', 1.0, END)
-        self.zone.tag_remove('found', 1.0, END)
+        self.zone().tag_remove('selection', 1.0, END)
+        self.zone().tag_remove('found', 1.0, END)
         self.top.destroy()
 
     def make_search(self):
         self.set_search_boundaries()
         pos = self.find_next()
-        self.zone.tag_remove('found', 1.0, END)
+        self.zone().tag_remove('found', 1.0, END)
         if pos:
-            self.zone.tag_add('found', pos,
+            self.zone().tag_add('found', pos,
                 '{}+{}c'.format(pos,found_length.get()))
             self.search_pos = '{}+{}c'.format(pos, found_length.get())
-            self.zone.see(pos)
-            self.editor.print_line_nums()
+            self.zone().see(pos)
+            self.editor().print_line_nums()
         else:
             tkinter.messagebox.showinfo(title=_('search'),
                 message=_('Not found'))
@@ -889,15 +894,15 @@ class Searcher:
         if case_insensitive.get():
             pattern = '(?i)' + pattern
             regexp = True
-        res = self.zone.search(pattern, self.search_pos,
+        res = self.zone().search(pattern, self.search_pos,
             count=found_length, regexp=regexp, **kw)
         ln = found_length.get()
         if res and full_word.get(): # remove borders
             line, col = [int(x) for x in res.split('.')]
-            if self.zone.get(res) != self.searched.get()[0]:
+            if self.zone().get(res) != self.searched.get()[0]:
                 res = '{}.{}'.format(line, col + 1)
                 ln -= 1
-            if self.zone.get('{}+{}c'.format(res, ln - 1)) != \
+            if self.zone().get('{}+{}c'.format(res, ln - 1)) != \
                     self.searched.get()[-1]:
                 ln -= 1
             found_length.set(ln)
@@ -913,21 +918,23 @@ class Searcher:
         self.set_search_boundaries()
         pos = self.find_next()
         if pos:
-            self.zone.tag_remove('found', 1.0, END)
-            self.zone.delete(pos,'{}+{}c'.format(pos, found_length.get()))
-            self.zone.insert(pos,self.replacement.get())
+            zone = self.zone()
+            zone.tag_remove('found', 1.0, END)
+            zone.delete(pos,'{}+{}c'.format(pos, found_length.get()))
+            zone.insert(pos,self.replacement.get())
             self.search_pos = '{}+{}c'.format(pos,
                 len(self.replacement.get()))
-            self.editor.syntax_highlight()
-            self.zone.tag_add('found', pos, '{}+{}c'.format(pos,
+            self.editor().syntax_highlight()
+            zone.tag_add('found', pos, '{}+{}c'.format(pos,
                 len(self.replacement.get())))
-            self.zone.see(pos)
+            zone.see(pos)
 
     def make_replace_all(self):
         self.set_search_boundaries()
         # keep undo stack separator at position before replace all
-        self.zone['autoseparators'] = False
-        if not self.zone.tag_ranges(SEL):
+        zone = self.zone()
+        zone['autoseparators'] = False
+        if not zone.tag_ranges(SEL):
             self.search_pos = 1.0
             self.search_end = END
         found = 0
@@ -936,16 +943,16 @@ class Searcher:
             if not pos:
                 break
             found += 1
-            self.zone.delete(pos,'{}+{}c'.format(pos, found_length.get()))
-            self.zone.insert(pos,self.replacement.get())
+            zone.delete(pos,'{}+{}c'.format(pos, found_length.get()))
+            zone.insert(pos,self.replacement.get())
             self.search_pos = '{}+{}c'.format(pos,
                 len(self.replacement.get()))
         if found:
-            self.zone.tag_remove('found', 1.0, END)
+            zone.tag_remove('found', 1.0, END)
             self.editor.syntax_highlight()
             # manually add separator in undo stack
-            self.zone.edit_separator()
-        self.zone['autoseparator'] = True # reset to default
+            zone.edit_separator()
+        zone['autoseparator'] = True # reset to default
 
 def ask_module(*args):
     file_name=askopenfilename(initialdir=default_dir())
@@ -989,6 +996,9 @@ def _close(*args):
         docs[current_doc].editor.zone.focus()
     else:
         current_doc = None
+        if hasattr(root, "search"):
+            root.top.destroy()
+            delattr(root, "search")
         root.title('TedPy')
 
 close_menu = None
