@@ -4,10 +4,8 @@ import sys
 import os
 import subprocess
 import re
-import string
 import time
-import keyword
-import configparser
+import json
 import html.parser
 
 from tkinter import *
@@ -28,17 +26,18 @@ python_versions = [('Python {}.{}'.format(*sys.version_info[:2]),
 encodings = ['ascii', 'iso-8859-1', 'latin-1', 'utf-8', 'cp850']
 
 # config
-ini = configparser.ConfigParser(allow_no_value=True)
-ini.read([os.path.join(this_dir, 'config.ini')], encoding='utf-8')
-if ini.has_section('versions'): # Python versions
-    for vnum in ini.options('versions'):
-        python_versions.append((vnum.capitalize(), ini.get('versions', vnum)))
-if ini.has_section('encodings'):
-    for encoding in ini.options('encodings'):
-        if not encoding in encodings:
-            encodings.append(encoding)
+config_file = os.path.join(this_dir, 'config.json')
+with open(config_file, encoding='utf-8') as f:
+    config = json.load(f)
 
-colors = {k: ini.get('colors', k) for k in ini.options('colors')}
+for vnum in config.get('versions', []):
+    python_versions.append((vnum.capitalize(), ini.get('versions', vnum)))
+
+for encoding in config.get('encodings', []):
+    if not encoding in encodings:
+        encodings.append(encoding)
+
+colors = config.get("colors", {})
 fg, bg = colors['color'], colors['bg']
 
 # parameters
@@ -233,6 +232,7 @@ class Editor(Frame):
         zone.tag_config('matching_brace', background="#444",
             foreground='#ff6')
         zone.tag_config('lone_brace', underline=1)
+        zone.tag_config('word', background='#444')
 
         zone.pack(expand=YES, fill=BOTH)
 
@@ -266,6 +266,10 @@ class Editor(Frame):
                 f.config(size=previous - 1)
             else:
                 f.config(size=previous + 1)
+        # update config
+        config["font-size"] = font["size"]
+        with open(config_file, 'w', encoding="utf-8") as out:
+            json.dump(config, out, indent=4)
         set_sizes()
 
     def change_wrap(self,*args):
@@ -484,6 +488,7 @@ class Editor(Frame):
         if hasattr(self, "browser"):
             self.browser.destroy()
             delattr(self, "browser")
+            self.zone.tag_remove('word', 1.0, END)
 
     def remove_tab(self,event):
         """Shift selected zone to the left by the number of spaces specified
@@ -538,6 +543,7 @@ class Editor(Frame):
                         label, num = line[:line.find('(')], i + 1
                         targets.append((label, num))
         else:
+            self.zone.tag_remove('word', 1.0, END)
             # right-click on indentation : ignore
             if not self.zone.get(current + 'linestart', current).strip():
                 return
@@ -554,26 +560,38 @@ class Editor(Frame):
             end = self.zone.search(r'\M', CURRENT, regexp=True,
                 stopindex=current + 'lineend') or current + 'lineend'
             word = self.zone.get(start, end)
-            kwp = '|'.join(kws)
-            pattern = r'^ *({})\s+{}\s*\('.format(kwp, word)
-            pos = self.zone.search(pattern, 1.0, regexp=True)
-            # menu to reach a class, method or function
-            if pos:
-                label = self.zone.get(pos, pos + 'lineend')
-                num = int(pos.split('.')[0])
-                targets = [(label, num)]
+            pattern = r'\y{}\y'.format(word)
+            pos = 1.0
+            while True:
+                pos = self.zone.search(pattern, pos, regexp=True,
+                    stopindex=END)
+                if not pos:
+                    break
+                # menu to reach a class, method or function
+                num, col = [int(x) for x in pos.split('.')]
+                end_pos = '{}.{}'.format(num, col + len(word))
+                if not (set(self.zone.tag_names(pos)) &
+                        set(['string', 'comment', 'keyword', 'def_class'])):
+                    self.zone.tag_add('word', pos, end_pos)
+                    label = self.zone.get(pos+'linestart', end_pos+'lineend')
+                    if not targets or targets[-1][1] != num:
+                        targets.append((label, num))
+                pos = end_pos
 
         if targets:
             self.function_line_nums = []
             self.browser = Toplevel()
-            self.browser.overrideredirect(1)
-            self.browser.geometry('+{}+{}'.format(event.x_root, event.y_root))
+            #self.browser.overrideredirect(1)
+            self.browser.geometry('+{x}+{y}'.format(
+                x=int(root.winfo_screenwidth() * 0.6), y=event.y_root))
+            self.browser.protocol("WM_DELETE_WINDOW",
+                lambda *args: self.remove_functions_browser())
             if len(targets) < 20:
-                text = Text(self.browser, height=len(targets))
+                text = Text(self.browser, height=len(targets), wrap=NONE)
             else:
-                text = ScrolledText(self.browser, height=20)
+                text = ScrolledText(self.browser, height=20, wrap=NONE)
             text.config(bg=colors['right_click_menu'], cursor="arrow", fg=fg,
-                font=font, padx=5, width=int(self.text_width() * 0.3))
+                font=font, padx=5, width=int(self.text_width() * 0.4))
             for label, num in targets:
                 text.insert(END, label + '\n')
                 self.function_line_nums.append(num)
@@ -1338,7 +1356,7 @@ def set_fonts():
     global font, sh_font
 
     root_w = root.winfo_screenwidth()
-    fsize = -int(root_w / 90)
+    fsize = config.get("font-size", -int(root_w / 90))
 
     families = tkinter.font.families(root)
     if "Consolas" in families:

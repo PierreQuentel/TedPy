@@ -1,0 +1,27 @@
+{
+    "versions": [],
+    "encodings": [
+        "ascii",
+        "iso-8859-1",
+        "latin-1",
+        "utf-8",
+        "utf-16"
+    ],
+    "colors": {
+        "bar": "#666",
+        "bg": "#021b42",
+        "color": "#ff9",
+        "select": "#33f",
+        "comment": "#6a6",
+        "string": "#6aa",
+        "keyword": "#42ebf4",
+        "builtin": "#0f0",
+        "tag": "#f08",
+        "parenthesis": "#e87b3c",
+        "curly_brace": "#f00",
+        "square_bracket": "#ce187f",
+        "too_long": "#666",
+        "right_click_menu": "#103775"
+    },
+    "font-size": -15
+}
