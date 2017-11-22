@@ -527,9 +527,9 @@ class Editor(Frame):
         self.remove_functions_browser()
         ext = os.path.splitext(docs[current_doc].file_name)[1]
         if ext == '.py':
-            kws = ['def', 'class']
+            kws = [r'\bdef\b', r'\bclass\b']
         elif ext == '.js':
-            kws = ['function', r'.*=\s*function']
+            kws = [r'\bfunction\b', r'.*=\s*function\b']
         else:
             return
         current = self.zone.index(CURRENT)
@@ -581,21 +581,22 @@ class Editor(Frame):
         if targets:
             self.function_line_nums = []
             self.browser = Toplevel()
-            #self.browser.overrideredirect(1)
-            self.browser.geometry('+{x}+{y}'.format(
-                x=int(root.winfo_screenwidth() * 0.6), y=event.y_root))
+            self.browser.geometry('{w}x{h}+{x}+{y}'.format(
+                w=int(root.winfo_screenwidth() * 0.3),
+                h=int(root.winfo_screenheight() * 0.6),
+                x=int(root.winfo_screenwidth() * 0.68), y=100))
             self.browser.protocol("WM_DELETE_WINDOW",
                 lambda *args: self.remove_functions_browser())
             if len(targets) < 20:
                 text = Text(self.browser, height=len(targets), wrap=NONE)
             else:
-                text = ScrolledText(self.browser, height=20, wrap=NONE)
+                text = ScrolledText(self.browser, height=40, wrap=NONE)
             text.config(bg=colors['right_click_menu'], cursor="arrow", fg=fg,
                 font=font, padx=5, width=int(self.text_width() * 0.4))
             for label, num in targets:
                 text.insert(END, label + '\n')
                 self.function_line_nums.append(num)
-            text.pack()
+            text.pack(fill=BOTH, expand=True)
             text.bind('<Button-1>', self.goto)
 
     def set_control(self,event):
