@@ -1055,7 +1055,7 @@ def _close(*args):
     else:
         current_doc = None
         if hasattr(root, "search"):
-            root.top.destroy()
+            root.search.destroy()
             delattr(root, "search")
         root.title('TedPy')
 
