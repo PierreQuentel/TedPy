@@ -1437,6 +1437,7 @@ def switch(event):
     if new_index == current_doc:
         return
     else:
+        docs[current_doc].editor.remove_functions_browser()
         switch_to(new_index)
 
 def switch_to(new_index):
