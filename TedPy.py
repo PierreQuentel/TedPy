@@ -31,7 +31,7 @@ with open(config_file, encoding='utf-8') as f:
     config = json.load(f)
 
 for vnum in config.get('versions', []):
-    python_versions.append((vnum.capitalize(), ini.get('versions', vnum)))
+    python_versions.append(vnum)
 
 for encoding in config.get('encodings', []):
     if not encoding in encodings:
