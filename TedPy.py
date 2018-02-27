@@ -61,11 +61,12 @@ for lang in patterns:
     patterns[lang] += [(square_brackets, 'square_bracket'),
         (parenthesis, 'parenthesis'), (curly_braces, 'curly_brace')]
 from js_keywords import js_keywords
-js_keywords = [(r'\b'+kw+r'\b') for kw in js_keywords]
+js_keywords = [(r'\b' + kw + r'\b') for kw in js_keywords]
 patterns['.js'].append(('|'.join(js_keywords), 'keyword'))
 zones = {
-    '.py':[ ('"""', '"""', 'string'), ('"', '"', 'string'),
-        ("'", "'", 'string'), ('#', '\n', 'comment')],
+    '.py':[ ('"""', '"""', 'string'), ("'''", "'''", 'string'),
+        ('"', '"', 'string'), ("'", "'", 'string'),
+        ('#', '\n', 'comment')],
     '.js':[('"', '"', 'string'), ("'", "'", 'string'),
         ('//', '\n', 'comment'), ('/*', '*/', 'comment')],
     '.html':[]
@@ -76,12 +77,9 @@ style.theme_use('clam')
 
 # configure the style
 
-style.configure("Vertical.TScrollbar", #gripcount=0,
+style.configure("Vertical.TScrollbar",
                 background="White",
-                #darkcolor="gray",
-                #lightcolor="gray",
                 troughcolor=bg,
-                #bordercolor="Black",
                 arrowcolor="Black"
                 )
 
@@ -134,7 +132,7 @@ class HTMLParser(html.parser.HTMLParser):
         self.zone.tag_add('comment',
             '{}.{}'.format(x0, y0 + 1 + len(tag)),
             '{}.{}'.format(x1, y1))
-        self.zone.tag_add('keyword', '{}.{}'.format(x1, y1)+'-1c',
+        self.zone.tag_add('keyword', '{}.{}'.format(x1, y1) + '-1c',
             '{}.{}'.format(x1, y1))
 
     def handle_endtag(self, tag):
@@ -612,7 +610,8 @@ class Editor(Frame):
                 if not (set(self.zone.tag_names(pos)) &
                         set(['string', 'comment', 'keyword', 'def_class'])):
                     self.zone.tag_add('word', pos, end_pos)
-                    label = self.zone.get(pos+'linestart', end_pos+'lineend')
+                    label = self.zone.get(pos + 'linestart',
+                        end_pos + 'lineend')
                     if not targets or targets[-1][1] != num:
                         targets.append((label, num))
                 pos = end_pos
@@ -633,7 +632,7 @@ class Editor(Frame):
             text.config(bg=colors['right_click_menu'], cursor="arrow", fg=fg,
                 font=font, padx=5, width=int(self.text_width() * 0.4))
             for label, num in targets:
-                text.insert(END, label + '\n')
+                text.insert(END, "{}: {}\n".format(num, label))
                 self.function_line_nums.append(num)
             text.pack(fill=BOTH, expand=True)
             text.bind('<Button-1>', self.goto)
@@ -708,7 +707,7 @@ class Editor(Frame):
             self.zone.tag_remove(tag, 1.0, END)
         # parse text to find strings, comments, keywords
         pos = 0
-        zones[ext].sort(key=lambda x:len(x[0]), reverse=True)
+        zones[ext].sort(key=lambda x: len(x[0]), reverse=True)
         t1 = time.time()
         nb0 = 0
         while pos < len(txt):
@@ -718,8 +717,8 @@ class Editor(Frame):
                     spos = pos + len(start)
                     while True:
                         end = txt.find(stop,spos)
-                        if (end != -1 and txt[end - 1]=='\\'
-                                and txt[end - 2]!='\\'):
+                        if (end != -1 and txt[end - 1] == '\\'
+                                and txt[end - 2] != '\\'):
                             spos = end + 1
                         else:
                             break
@@ -747,7 +746,7 @@ class Editor(Frame):
         # hightlight the part that exceeds 80 characters
         for linenum in range(1, self.ix2pos(END)[0]):
             lineend = self.ix2pos('{}.0'.format(linenum) + 'lineend')[1]
-            if lineend>78:
+            if lineend > 78:
                 self.zone.tag_add('too_long', '{}.{}'.format(linenum, 78),
                     '{}.{}'.format(linenum, lineend))
         self.last_update = time.time()
@@ -781,7 +780,7 @@ class Editor(Frame):
                 self.shift = False
             return
         if not event.keysym in ['Up', 'Down', 'Left', 'Right', 'Next',
-            'Prior', 'Home', 'End', 'Control_L', 'Control_R']:
+                'Prior', 'Home', 'End', 'Control_L', 'Control_R']:
             self.syntax_highlight()
         self.mark_brace(INSERT)
         if not event.char:
@@ -1150,7 +1149,7 @@ def new_module(ext):
     doc.editor.encoding.set(encoding_for_next_open.get())
     docs.append(doc)
     file_browser.update()
-    current_doc = len(docs)-1
+    current_doc = len(docs) - 1
     file_browser.select(doc)
     if ext == 'html':
         # prefill HTML page
@@ -1170,7 +1169,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
         tkinter.messagebox.showinfo(title=_('opening file'),
                 message=_('File not found'))
         return
-    if os.path.splitext(file_name)[1]=='.py':
+    if os.path.splitext(file_name)[1] == '.py':
         # search a line with encoding (see PEP 0263)
         src = open(file_name)
         try:
@@ -1245,7 +1244,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     new_doc.editor.zone.focus()
 
 def py_encoding(head):
-    mo = re.search('(?s)coding\s*[:=]\s*([-\w.]+)',head, re.M)
+    mo = re.search('(?s)coding\s*[:=]\s*([-\w.]+)', head, re.M)
     if mo:
         return mo.groups()[0]
 
@@ -1254,7 +1253,7 @@ def replace(*args):
         Searcher().replace()
 
 def run(*args):
-    if not docs or not docs[current_doc].editor.zone.get(1.0,END).strip():
+    if not docs or not docs[current_doc].editor.zone.get(1.0, END).strip():
         return
     if docs[current_doc].file_name is None:
         save_as()
@@ -1323,7 +1322,7 @@ def save_history(doc):
             if line.strip() and not line.strip() == file_name] + [file_name]
     except IOError:
         out = open(h_path, 'w', encoding="utf-8")
-        out.write(file_name+'\n')
+        out.write(file_name + '\n')
         out.close()
         menuModule.add_separator()
         menuModule.add_command(label=file_name,
@@ -1331,7 +1330,7 @@ def save_history(doc):
         return
     with open(h_path, 'w', encoding="utf-8") as out:
         for line in history[-history_size:]:
-            out.write(os.path.normpath(line)+'\n')
+            out.write(os.path.normpath(line) + '\n')
     # remove entry in menu
     index = menuModule.index(END)
     deleted = False
@@ -1339,7 +1338,7 @@ def save_history(doc):
         if menuModule.type(index) != 'command':
             break
         else:
-            label = menuModule.entrycget(index,'label')
+            label = menuModule.entrycget(index, 'label')
             if label == file_name:
                 menuModule.delete(index)
                 deleted = True
@@ -1351,7 +1350,7 @@ def save_history(doc):
             menuModule.delete(nb_menu_items + 2) # oldest file in history
     # add to menu
     menuModule.add_command(label=file_name,
-        command=lambda file_name=file_name:open_module(file_name))
+        command=lambda file_name=file_name: open_module(file_name))
     # save last modif time
     doc.last_modif = os.stat(file_name).st_mtime
 
@@ -1483,11 +1482,11 @@ menuModule=Menu(menubar, tearoff=0)
 menu_new = Menu(menuModule, tearoff=0)
 for label, ext in [('Python (.py)', 'py'), ('Javascript (.js)', 'js'),
     ('HTML (.html)', 'html'), ('Text (.txt)', 'txt')]:
-    menu_new.add_command(label=label, command=lambda x=ext:new_module(x))
+    menu_new.add_command(label=label, command=lambda x=ext: new_module(x))
 menuModule.add_cascade(menu=menu_new, label=_('new'))
 menuModule.add_command(label=_('open'), accelerator='Ctrl+O',
     command=ask_module)
-menuModule.add_command(label=_('save as')+'...', command=save_as)
+menuModule.add_command(label=_('save as') + '...', command=save_as)
 menuModule.add_command(label=_('save'), accelerator='Ctrl+S', command=save)
 menuModule.add_command(label=_('close'), command=close_window)
 menuModule.add_command(label=_('run'), accelerator="Ctrl+R", command=run)
@@ -1505,13 +1504,13 @@ try:
     if history:
         menuModule.add_separator()
         for f in history:
-            menuModule.add_command(label=f, command=lambda f=f:open_module(f))
+            menuModule.add_command(label=f, command=lambda f=f: open_module(f))
 except IOError:
     pass
 
 menubar.add_cascade(menu=menuModule, label=_('file'))
 
-menuEdition=Menu(menubar,tearoff=0)
+menuEdition=Menu(menubar, tearoff=0)
 menuEdition.add_command(label=_('search'), command=search, accelerator="F5")
 menuEdition.add_command(label=_('search in files'), command=search_in_files,
     accelerator="F6")
@@ -1529,12 +1528,12 @@ for nb in [2, 4]:
     menuIndent.add_radiobutton(label=nb, variable=spaces_per_tab)
 menuConfig.add_cascade(menu=menuIndent, label=_('spaces_per_tab'))
 
-menuLinefeed = Menu(menuConfig,tearoff=0)
+menuLinefeed = Menu(menuConfig, tearoff=0)
 for lf in ['Unix: \\n', 'DOS: \\r\\n', 'Mac: \\r']:
-    menuLinefeed.add_radiobutton(label = lf, variable=linefeed)
+    menuLinefeed.add_radiobutton(label=lf, variable=linefeed)
 menuConfig.add_cascade(menu=menuLinefeed, label=_('linefeed'))
 
-menuInterpreter = Menu(menuConfig,tearoff=0)
+menuInterpreter = Menu(menuConfig, tearoff=0)
 for py_ver,py_int in python_versions:
     menuInterpreter.add_radiobutton(label=py_ver, variable=python_version)
 menuConfig.add_cascade(menu=menuInterpreter, label=_('Python version'))
@@ -1559,7 +1558,7 @@ class FileBrowser(tkinter.Text):
 
     def update(self):
         lines = [(os.path.basename(doc.file_name),doc) for doc in docs ]
-        lines.sort(key=lambda x:x[0].lower())
+        lines.sort(key=lambda x: x[0].lower())
         self.doc_line = dict((line[1], i + 1)
             for (i,line) in enumerate(lines))
         self.doc_at_line = dict((i, line[1])
