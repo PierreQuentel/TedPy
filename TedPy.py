@@ -845,7 +845,7 @@ class Searcher:
         self.searched.pack()
         self.searched.focus()
         if repl:
-            Label(self.top,text=_('replace by')).pack()
+            Label(self.top, text=_('replace by')).pack()
             self.replacement = Entry(self.top, relief=GROOVE, borderwidth=4)
             self.replacement.pack()
         f_buttons = Frame(self.top)
@@ -860,7 +860,7 @@ class Searcher:
         if repl:
             Button(self.top, text=_('replace next'),
                 command=self.make_replace).pack()
-            Button(self.top,text=_('replace all'),
+            Button(self.top, text=_('replace all'),
                 command=self.make_replace_all).pack()
         elif files:
             Button(self.top, text=_('search'),
@@ -893,7 +893,7 @@ class Searcher:
         txt = self.searched.get()
         pattern = txt
         if full_word.get():
-            for car in '[](){}$^':
+            for car in '[](){}$^.':
                 pattern = pattern.replace(car, '\\'+car)
             pattern = r'(^|[^\w\d_$]){}($|[^\w\d_$])'.format(pattern)
         flags = 0
@@ -1609,8 +1609,8 @@ set_fonts()
 
 file_browser = FileBrowser(root, font=font, height=38, padx=3, pady=3,
     borderwidth=6, relief=GROOVE, cursor='arrow', state=DISABLED,
-    foreground='white', bg=colors['bg'])
-file_browser.tag_config('selected', foreground='#000', background='#eee')
+    foreground=fg, bg=bg)
+file_browser.tag_config('selected', foreground=bg, background=fg)
 file_browser.pack(side=LEFT, anchor=NW, expand=YES, fill=Y)
 file_browser.bind('<ButtonRelease>', switch)
 file_browser.bind('<Button-3>', close_dialog)
