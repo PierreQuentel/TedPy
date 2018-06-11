@@ -1153,8 +1153,8 @@ def new_module(ext):
     file_browser.select(doc)
     if ext == 'html':
         # prefill HTML page
-        text = ("<!doctype html>\n<html>\n<head>\n</head>\n<body>\n</body>"
-            + "\n</html>")
+        text = ('<!doctype html>\n<html>\n<head>\n<meta charset="utf-8">\n' +
+            '</head>\n<body>\n</body>\n</html>')
         editor.zone.insert(1.0, text)
         editor.syntax_highlight()
     editor.zone.focus()
