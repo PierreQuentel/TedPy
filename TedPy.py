@@ -1276,11 +1276,10 @@ def run(*args):
     fname = docs[current_doc].file_name
     if sys.platform == 'win32':
         # use START in file directory
-        with open('run.bat', 'w', encoding='utf-8') as out:
-            line = '@echo off\ncd %1%\n{0} %2%\npause\nexit'
-            out.write(line.format(interp))
+        drive = os.path.splitdrive(fname)[0]
+        os.system(drive)
         dname = os.path.dirname(fname).replace('/', '\\')
-        os.system('start /D "{}" run "{}" "{}"'.format(os.getcwd(),
+        os.system('start /D "{}" run "{}" "{}"'.format(dname,
             dname, fname))
     else:   # works on Raspbian
         with open('run.sh', 'w', encoding='utf-8') as out:
