@@ -1127,8 +1127,8 @@ def make_patterns(*args):
         'build_patterns.py')))
     if not os.getcwd() in sys.path:
         sys.path.append(os.getcwd())
-    import _patterns, imp
-    imp.reload(_patterns)
+    import _patterns, importlib
+    importlib.reload(_patterns)
     kw_pattern = '|'.join([r'\b{}\b'.format(kw) for kw in _patterns.keywords])
     builtins_pattern = '|'.join([r'\b{}\b'.format(b)
         for b in _patterns.builtins])
@@ -1180,7 +1180,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
     elif os.path.splitext(file_name)[1] in ['.html','.htm']:
         # search a meta tag with charset
         if force_encoding is None:
-            with open(file_name, 'U', errors='ignore') as fobj:
+            with open(file_name, newline="", errors='ignore') as fobj:
                 file_encoding = html_encoding(fobj.read())
             if not file_encoding:
                 tkinter.messagebox.showwarning(title=_('HTML encoding'),
@@ -1276,10 +1276,18 @@ def run(*args):
     fname = docs[current_doc].file_name
     if sys.platform == 'win32':
         # use START in file directory
+        this_dir = os.path.dirname(__file__)
+        with open(os.path.join(this_dir, "run.bat"), "w",
+                encoding="utf-8") as out:
+            out.write("""@echo off
+cd %1%
+{} %2%
+pause
+exit""".format(interp))
         drive = os.path.splitdrive(fname)[0]
         os.system(drive)
         dname = os.path.dirname(fname).replace('/', '\\')
-        os.system('start /D "{}" run "{}" "{}"'.format(dname,
+        os.system('start /D "{}" {}/run "{}" "{}"'.format(dname, this_dir,
             dname, fname))
     else:   # works on Raspbian
         with open('run.sh', 'w', encoding='utf-8') as out:
