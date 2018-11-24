@@ -917,6 +917,7 @@ class Searcher:
                 rest = src
                 lines = src.split('\n')
                 pos = 0
+                save_lnum = None
                 while True:
                     mo = re.search(pattern, rest, flags=flags)
                     if mo:
@@ -929,8 +930,10 @@ class Searcher:
                             flag_file = True
                         pos_in_src = pos + mo.start()
                         lnum = src[:pos_in_src].count('\n')
-                        zone.insert(END, '\n        line %4s : %s'
-                            %(lnum+1, lines[lnum][:100]))
+                        if lnum != save_lnum:
+                            zone.insert(END, '\n        line %4s : %s'
+                                %(lnum+1, lines[lnum][:100]))
+                            save_lnum = lnum
                         pos += mo.start() + len(txt)
                         rest = rest[mo.start() + len(txt):]
                     else:
