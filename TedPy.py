@@ -380,7 +380,7 @@ class Editor(Frame):
         # for a Python script, if line ends with ':', add indent
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
-        if ext == '.py' and txt.endswith(':'):
+        if ext == '.py' and txt.strip().endswith(':'):
             self.zone.insert(INSERT, '\n'+
                 (indent + self.spaces_per_tab.get()) * ' ')
         else:
