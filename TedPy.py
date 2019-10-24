@@ -474,7 +474,7 @@ class Editor(Frame):
                         self.zone.tag_add('matching_brace', p)
                         return
 
-    def paste(self,event):
+    def paste(self, event):
         self.syntax_highlight()
         self.print_line_nums()
         return 'break'
@@ -778,7 +778,8 @@ class Editor(Frame):
         if self.shift:
             if event.keysym in ['Shift_R', 'Shift_L']:
                 self.shift = False
-            return
+            if not event.char:
+                return
         if not event.keysym in ['Up', 'Down', 'Left', 'Right', 'Next',
                 'Prior', 'Home', 'End', 'Control_L', 'Control_R']:
             self.syntax_highlight()
@@ -788,7 +789,7 @@ class Editor(Frame):
                     or self.current_line < self.first_visible
                     or self.current_line > self.last_visible):
                 self.print_line_nums()
-            if self.delete_end:
+            if getattr(self, "delete_end", False):
                 # delete at line end : remove next line indentation
                 while self.zone.get(INSERT) == ' ':
                     self.zone.delete(INSERT)
@@ -1015,7 +1016,7 @@ class Searcher:
         zone['autoseparator'] = True # reset to default
 
 def ask_module(*args):
-    file_name=askopenfilename(initialdir=default_dir())
+    file_name = askopenfilename(initialdir=default_dir())
     if file_name:
         open_module(file_name)
 
@@ -1570,7 +1571,8 @@ for nb in [2, 4]:
 menuConfig.add_cascade(menu=menuIndent, label=_('spaces_per_tab'))
 
 menuLinefeed = Menu(menuConfig, tearoff=0)
-for lf in ['Unix: \\n', 'DOS: \\r\\n', 'Mac: \\r']:
+linefeeds = {'Unix: \\n': '\n', 'DOS: \\r\\n': '\r\n', 'Mac: \\r': '\r'}
+for lf in linefeeds:
     menuLinefeed.add_radiobutton(label=lf, variable=linefeed)
 menuConfig.add_cascade(menu=menuLinefeed, label=_('linefeed'))
 
