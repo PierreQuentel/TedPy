@@ -1321,8 +1321,9 @@ exit""".format(interp))
         drive = os.path.splitdrive(fname)[0]
         os.system(drive)
         dname = os.path.dirname(fname).replace('/', '\\')
-        os.system('start /D "{}" {}/run "{}" "{}"'.format(dname, this_dir,
-            dname, fname))
+        cmd = r'start {} {} {}'.format(os.path.join(this_dir, "run.bat"),
+            dname, fname)
+        os.system(cmd)
     else:   # works on Raspbian
         with open('run.sh', 'w', encoding='utf-8') as out:
             out.write('#!/bin/bash\ncd {}\n{} {}\n'.format(
