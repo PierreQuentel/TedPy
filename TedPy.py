@@ -1321,7 +1321,7 @@ exit""".format(interp))
         drive = os.path.splitdrive(fname)[0]
         os.system(drive)
         dname = os.path.dirname(fname).replace('/', '\\')
-        cmd = r'start {} {} {}'.format(os.path.join(this_dir, "run.bat"),
+        cmd = r'start {} "{}" "{}"'.format(os.path.join(this_dir, "run.bat"),
             dname, fname)
         os.system(cmd)
     else:   # works on Raspbian
@@ -1631,6 +1631,8 @@ class FileBrowser(tkinter.Text):
 
     def mark_if_changed(self):
         """Add a * after file name if modified since open or last save"""
+        if current_doc is None:
+            return
         self['state'] = NORMAL
         doc = docs[current_doc]
         line_num = self.doc_line[doc]
