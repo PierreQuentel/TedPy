@@ -85,6 +85,7 @@ style.configure("Vertical.TScrollbar",
                 )
 
 class ScrolledText(Text):
+
     def __init__(self, master=None, **kw):
         self.frame = Frame(master)
         self.vbar = ttk.Scrollbar(self.frame)
