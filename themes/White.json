@@ -1,12 +1,4 @@
 {
-    "versions": [],
-    "encodings": [
-        "ascii",
-        "iso-8859-1",
-        "latin-1",
-        "utf-8",
-        "utf-16"
-    ],
     "backgrounds":{
         "default": "#fff",
         "matching_brace": "#444",
@@ -29,6 +21,5 @@
         "right_click_menu": "#d0d7e2",
         "lang_in_html": "#eee",
         "word": "#fff"
-    },
-    "font-size": -15
+    }
 }
