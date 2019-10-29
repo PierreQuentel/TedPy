@@ -78,7 +78,6 @@ style = ttk.Style()
 style.theme_use('clam')
 
 # configure the style
-
 style.configure("Vertical.TScrollbar",
                 background="White",
                 troughcolor=bg,
