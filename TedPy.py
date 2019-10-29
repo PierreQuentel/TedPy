@@ -38,7 +38,9 @@ for encoding in config.get('encodings', []):
         encodings.append(encoding)
 
 colors = config.get("colors", {})
-fg, bg = colors['color'], colors['bg']
+backgrounds = config.get("backgrounds", {})
+bg = backgrounds.get("default", "#fff")
+fg = colors['color']
 
 # parameters
 history_size = 8 # number of files in history
@@ -111,17 +113,37 @@ class ScrolledText(Text):
 # html parser
 class HTMLParser(html.parser.HTMLParser):
 
-    def __init__(self, zone):
+    def __init__(self, editor):
         html.parser.HTMLParser.__init__(self)
-        self.zone = zone
+        self.zone = editor.zone
+        self.scripts = []
 
     def handle_decl(self, decl):
         self.handle_endtag(decl)
 
     def handle_starttag(self, tag, attrs):
+        self.state = None
         text = self.get_starttag_text()
         lines = text.split('\n')
         x0, y0 = self.getpos()
+        if tag.lower() == "script":
+            has_src = False
+            self.state = ".js"
+            for key, value in attrs:
+                if key == "type":
+                    if value == "text/python":
+                        begin = "{}.{}".format(x0, y0 + len(text))
+                        self.state = ".py"
+                    elif value != "text/javascript":
+                        self.state = value
+                elif key == "src":
+                    has_src = True
+            if self.state in patterns and not has_src:
+                begin = "{}.{}".format(x0, y0 + len(text))
+                self.scripts.append([self.state,
+                    self.zone.index(begin + "+1c")])
+            else:
+                self.state = None
         x1 = x0 + len(lines) - 1
         if len(lines) == 1:
             y1 = y0 + len(text)
@@ -138,6 +160,8 @@ class HTMLParser(html.parser.HTMLParser):
     def handle_endtag(self, tag):
         x, y = self.getpos()
         p0 = '{}.{}'.format(x, y)
+        if tag == "script" and self.state is not None:
+            self.scripts[-1].append(p0)
         closing_pos = self.zone.search('>', p0)
         self.zone.tag_add('keyword', p0, closing_pos + '+1c')
 
@@ -264,12 +288,14 @@ class Editor(Frame):
                 'curly_brace', 'square_bracket', 'too_long'):
             zone.tag_config(tag, foreground=colors[tag])
 
+        zone.tag_config('script_in_html', borderwidth=2, relief=GROOVE)
         zone.tag_config('found', foreground=bg, background=fg)
-        zone.tag_config('selection', background=zone['selectbackground'])
-        zone.tag_config('matching_brace', background="#444",
-            foreground='#ff6')
+        zone.tag_config('selection', background=zone['selectbackground'],
+            borderwidth=0)
         zone.tag_config('lone_brace', underline=1)
-        zone.tag_config('word', background='#444')
+        for tag_name in ['matching_brace', 'word']:
+            zone.tag_config(tag_name, background=backgrounds[tag_name],
+                foreground=colors[tag_name], borderwidth=0, relief=FLAT)
 
         zone.pack(expand=YES, fill=BOTH)
 
@@ -341,6 +367,79 @@ class Editor(Frame):
         self.zone.see(INSERT)
         self.print_line_nums()
 
+    def highlight_lang(self, begin, end, ext, in_html=False):
+        t0 = time.time()
+        # don't do highlighting too often
+        if self.last_update and \
+            time.time() - self.last_update < self.last_highlight_time:
+            self.do_delayed = True
+            # set a timer that will do a syntax highlight later
+            # if nothing was entered in the meantime
+            self.zone.after(int(1000 * self.last_highlight_time),
+                self.delayed_sh)
+            return
+        self.do_delayed = False
+        txt = self.zone.get(begin, end).rstrip() + '\n'
+        ltxt = list(txt)
+        # mapping between position and line,column
+        lc = []
+        line, col = self.ix2pos(begin)
+        for car in txt:
+            lc.append((line, col))
+            col += 1
+            if car == '\n':
+                line += 1
+                col = 0
+        # remove existing tags
+        for tag in self.zone.tag_names():
+            self.zone.tag_remove(tag, begin, end)
+        # parse text to find strings, comments, keywords
+        pos = 0
+        zones[ext].sort(key=lambda x: len(x[0]), reverse=True)
+        t1 = time.time()
+        nb0 = 0
+        while pos < len(txt):
+            flag = False
+            for start, stop, ztype in zones[ext]:
+                if txt[pos:pos + len(start)] == start:
+                    spos = pos + len(start)
+                    while True:
+                        s_end = txt.find(stop, spos)
+                        if (s_end != -1 and txt[s_end - 1] == '\\'
+                                and txt[s_end - 2] != '\\'):
+                            spos = s_end + 1
+                        else:
+                            break
+                    if s_end > -1:
+                        # set zone to whitespace for next markup
+                        for i in range(pos, s_end + len(stop)):
+                            ltxt[i] = ' '
+                        # highlight zone with matching tag
+                        ix1 = '{}.{}'.format(*lc[pos])
+                        ix2 = '{}.{}'.format(*lc[min(s_end + len(stop),
+                            len(txt) - 1)])
+                        self.zone.tag_add(ztype, ix1, ix2)
+                        nb0 += 1
+                        pos = s_end + len(stop)
+                        flag = True
+                    break # if """ matched, don't try a single "
+            if not flag:
+                pos += 1
+        raw = ''.join(ltxt) # original text with empty strings and comments
+        for (pattern, tag) in patterns[ext]:
+            for mo in re.finditer(pattern, raw, re.S):
+                k1, k2 = mo.start(), mo.end()
+                self.zone.tag_add(tag,'{}.{}'.format(*lc[k1]),
+                    '{}.{}'.format(*lc[k2]))
+        # hightlight the part that exceeds 80 characters
+        for linenum in range(self.ix2pos(begin)[0], self.ix2pos(end)[0]):
+            lineend = self.ix2pos('{}.0'.format(linenum) + 'lineend')[1]
+            if lineend > 78:
+                self.zone.tag_add('too_long', '{}.{}'.format(linenum, 78),
+                    '{}.{}'.format(linenum, lineend))
+        self.last_update = time.time()
+        self.last_highlight_time = self.last_update - t0
+
     def home(self,event):
         """Home key : go to start of line, after the indentation"""
         left = self.zone.get('{}linestart'.format(self.zone.index(INSERT)),
@@ -354,10 +453,11 @@ class Editor(Frame):
 
     def html_highlight(self):
         txt = self.zone.get(1.0, END).rstrip() + '\n'
-        parser = HTMLParser(self.zone)
+        parser = HTMLParser(self)
         # while editing there may be parser error, ignore them
         try:
             parser.feed(txt)
+            self.scripts = parser.scripts
         except:
             pass
 
@@ -560,27 +660,38 @@ class Editor(Frame):
                 self.zone.delete('{}.{}'.format(i, len(rstripped)),
                     '{}.0lineend'.format(i))
 
-    def right_click(self,event):
+    def right_click(self, event):
         self.remove_functions_browser()
         ext = os.path.splitext(docs[current_doc].file_name)[1]
+        current = self.zone.index(CURRENT)
+        begin, end = 1.0, END
+        if ext == '.html':
+            if "script_in_html" in self.zone.tag_names(current):
+                for (ext, begin, end) in self.scripts:
+                    if self.zone.compare(begin, "<", current) and \
+                            self.zone.compare(end, ">", current):
+                        break
+                else:
+                    return
+            else:
+                return
+        elif not ext in ['.py', '.js']:
+            return
         if ext == '.py':
             kws = [r'\bdef\b', r'\bclass\b']
         elif ext == '.js':
             kws = [r'\bfunction\b', r'.*=\s*function\b']
-        else:
-            return
-        current = self.zone.index(CURRENT)
         targets = []
         if current == self.zone.index(current + 'lineend'):
             # menu to reach all functions, classes and methods in the script
-            lines = [x.rstrip() for x in self.zone.get(1.0, END).split('\n')]
+            lines = [x.rstrip() for x in self.zone.get(begin, end).split('\n')]
             for i, line in enumerate(lines):
                 for kw in kws:
                     if re.match(kw, line.lstrip()):
                         label, num = line[:line.find('(')], i + 1
                         targets.append((label, num))
         else:
-            self.zone.tag_remove('word', 1.0, END)
+            self.zone.tag_remove('word', begin, end)
             # right-click on indentation : ignore
             if not self.zone.get(current + 'linestart', current).strip():
                 return
@@ -589,19 +700,19 @@ class Editor(Frame):
                 set(['string', 'comment', 'keyword', 'def_class']):
                 return
             # right-click on identifier : search it in the document
-            start = self.zone.search(r'[^\w]', CURRENT, backwards=True,
+            id_start = self.zone.search(r'[^\w]', CURRENT, backwards=True,
                 stopindex=current + 'linestart', regexp=True) \
                 or current + 'linestart'
-            if start != current + 'linestart':
-                start = start + '+1c'
-            end = self.zone.search(r'\M', CURRENT, regexp=True,
+            if id_start != current + 'linestart':
+                id_start = id_start + '+1c'
+            id_end = self.zone.search(r'\M', CURRENT, regexp=True,
                 stopindex=current + 'lineend') or current + 'lineend'
-            word = self.zone.get(start, end)
+            word = self.zone.get(id_start, id_end)
             pattern = r'\y{}\y'.format(word)
-            pos = 1.0
+            pos = begin
             while True:
                 pos = self.zone.search(pattern, pos, regexp=True,
-                    stopindex=END)
+                    stopindex=end)
                 if not pos:
                     break
                 # menu to reach a class, method or function
@@ -659,7 +770,6 @@ class Editor(Frame):
         self.print_line_nums()
 
     def syntax_highlight(self):
-        t0 = time.time()
         file_browser.mark_if_changed()
         self.highlight = syntax_highlight.get()
         if not syntax_highlight.get():
@@ -669,7 +779,7 @@ class Editor(Frame):
             return
         # check encoding
         try:
-            self.zone.get(1.0,END).encode(self.encoding.get())
+            self.zone.get(1.0, END).encode(self.encoding.get())
         except UnicodeError:
             tkinter.messagebox.showerror(title=_('unicode error'),
                 message=_('cannot_encode').format(self.encoding.get()))
@@ -678,79 +788,15 @@ class Editor(Frame):
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
         if ext == '.html':
-            return self.html_highlight()
+            self.html_highlight()
+            # highlight the scripts inside <script> tags
+            for (ext, begin, end) in self.scripts:
+                self.highlight_lang(begin, end, ext, in_html=True)
+                self.zone.tag_add('script_in_html', begin, end)
+            return
         if not ext in patterns:
             return
-        # don't do highlighting too often
-        if self.last_update and \
-            time.time() - self.last_update < self.last_highlight_time:
-            self.do_delayed = True
-            # set a timer that will do a syntax highlight later
-            # if nothing was entered in the meantime
-            self.zone.after(int(1000 * self.last_highlight_time),
-                self.delayed_sh)
-            return
-        self.do_delayed = False
-        txt = self.zone.get(1.0, END).rstrip() + '\n'
-        ltxt = list(txt)
-        # mapping between position and line,column
-        lc = []
-        line, col = 1, 0
-        for car in txt:
-            lc.append((line, col))
-            col += 1
-            if car == '\n':
-                line += 1
-                col = 0
-        # remove existing tags
-        for tag in self.zone.tag_names():
-            self.zone.tag_remove(tag, 1.0, END)
-        # parse text to find strings, comments, keywords
-        pos = 0
-        zones[ext].sort(key=lambda x: len(x[0]), reverse=True)
-        t1 = time.time()
-        nb0 = 0
-        while pos < len(txt):
-            flag = False
-            for start, stop, ztype in zones[ext]:
-                if txt[pos:pos + len(start)] == start:
-                    spos = pos + len(start)
-                    while True:
-                        end = txt.find(stop,spos)
-                        if (end != -1 and txt[end - 1] == '\\'
-                                and txt[end - 2] != '\\'):
-                            spos = end + 1
-                        else:
-                            break
-                    if end > -1:
-                        # set zone to whitespace for next markup
-                        for i in range(pos, end + len(stop)):
-                            ltxt[i] = ' '
-                        # highlight zone with matching tag
-                        ix1 = '{}.{}'.format(*lc[pos])
-                        ix2 = '{}.{}'.format(*lc[min(end + len(stop),
-                            len(txt) - 1)])
-                        self.zone.tag_add(ztype, ix1, ix2)
-                        nb0 += 1
-                        pos = end + len(stop)
-                        flag = True
-                    break # if """ matched, don't try a single "
-            if not flag:
-                pos += 1
-        raw = ''.join(ltxt) # original text with empty strings and comments
-        for (pattern, tag) in patterns[ext]:
-            for mo in re.finditer(pattern, raw, re.S):
-                k1, k2 = mo.start(), mo.end()
-                self.zone.tag_add(tag,'{}.{}'.format(*lc[k1]),
-                    '{}.{}'.format(*lc[k2]))
-        # hightlight the part that exceeds 80 characters
-        for linenum in range(1, self.ix2pos(END)[0]):
-            lineend = self.ix2pos('{}.0'.format(linenum) + 'lineend')[1]
-            if lineend > 78:
-                self.zone.tag_add('too_long', '{}.{}'.format(linenum, 78),
-                    '{}.{}'.format(linenum, lineend))
-        self.last_update = time.time()
-        self.last_highlight_time = self.last_update - t0
+        self.highlight_lang(1.0, END, ext)
 
     def text_width(self):
         pix_per_char = font.measure('0') # pixels per char in this font

@@ -7,21 +7,28 @@
         "utf-8",
         "utf-16"
     ],
+    "backgrounds":{
+        "default": "#fff",
+        "matching_brace": "#444",
+        "word": "#444"
+    },
     "colors": {
         "bar": "#ccc",
-        "bg": "#fff",
         "color": "#000",
         "select": "#c7d3e5",
         "comment": "#18822a",
         "string": "#052963",
         "keyword": "#053075",
         "builtin": "#075908",
+        "matching_brace": "#ff6",
         "tag": "#f08",
         "parenthesis": "#a26f00",
         "curly_brace": "#f00",
         "square_bracket": "#ce187f",
         "too_long": "#666",
-        "right_click_menu": "#d0d7e2"
+        "right_click_menu": "#d0d7e2",
+        "lang_in_html": "#eee",
+        "word": "#fff"
     },
     "font-size": -15
 }
