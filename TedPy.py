@@ -37,10 +37,14 @@ for encoding in config.get('encodings', []):
     if not encoding in encodings:
         encodings.append(encoding)
 
-colors = config.get("colors", {})
-backgrounds = config.get("backgrounds", {})
-bg = backgrounds.get("default", "#fff")
-fg = colors['color']
+theme = config["theme"]
+with open(os.path.join(this_dir, 'themes', theme + '.json'),
+        encoding='utf-8') as f:
+    data = json.load(f)
+    colors = data["colors"]
+    backgrounds = data["backgrounds"]
+    bg = backgrounds.get("default", "#fff")
+    fg = colors['color']
 
 # parameters
 history_size = 8 # number of files in history
@@ -333,9 +337,11 @@ class Editor(Frame):
             else:
                 f.config(size=previous + 1)
         # update config
-        config["font-size"] = font["size"]
-        with open(config_file, 'w', encoding="utf-8") as out:
-            json.dump(config, out, indent=4)
+        with open(config_file, encoding="utf-8") as f:
+            data = json.load(f)
+        data["font-size"] = font["size"]
+        with open(config_file, "w", encoding="utf-8") as out:
+            json.dump(data, out, indent=4)
         set_sizes()
 
     def change_wrap(self,*args):
@@ -1552,6 +1558,7 @@ def update_highlight(*args):
     if docs:
         docs[current_doc].editor.syntax_highlight()
 
+theme = StringVar(root)
 encoding_for_next_open = StringVar(root)
 encoding_for_next_open.set('utf-8')
 python_version = StringVar(root)
@@ -1615,6 +1622,7 @@ menuEdition.add_command(label=_('replace'), command=replace, accelerator="F8")
 menubar.add_cascade(menu=menuEdition, label=_('edit'))
 
 menuConfig = Menu(menubar, tearoff=0)
+
 menuEncoding = Menu(menuConfig, tearoff=0)
 for enc in encodings:
     menuEncoding.add_radiobutton(label=enc, variable=encoding_for_next_open)
