@@ -25,7 +25,7 @@ python_versions = [('Python {}.{}'.format(*sys.version_info[:2]),
     sys.executable)]
 encodings = ['ascii', 'iso-8859-1', 'utf-8', 'cp850']
 
-# config
+# Load config
 config_file = os.path.join(this_dir, 'config.json')
 with open(config_file, encoding='utf-8') as f:
     config = json.load(f)
