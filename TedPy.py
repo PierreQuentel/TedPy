@@ -288,7 +288,10 @@ class Editor(Frame):
                 'curly_brace', 'square_bracket', 'too_long'):
             zone.tag_config(tag, foreground=colors[tag])
 
-        zone.tag_config('script_in_html', borderwidth=2, relief=GROOVE)
+        zone.tag_config('script_in_html', borderwidth=2, relief=GROOVE,
+            lmargin1=15)
+        zone.tag_config('script_first', spacing1=10)
+        zone.tag_config('script_last', spacing3=10)
         zone.tag_config('found', foreground=bg, background=fg)
         zone.tag_config('selection', background=zone['selectbackground'],
             borderwidth=0)
@@ -793,6 +796,11 @@ class Editor(Frame):
             for (ext, begin, end) in self.scripts:
                 self.highlight_lang(begin, end, ext, in_html=True)
                 self.zone.tag_add('script_in_html', begin, end)
+                # manual top and bottom padding
+                self.zone.tag_add('script_first', begin,
+                    self.zone.index(begin + "lineend"))
+                self.zone.tag_add('script_last',
+                    self.zone.index(end + "-1c linestart"), end)
             return
         if not ext in patterns:
             return
