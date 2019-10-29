@@ -23,7 +23,7 @@ _ = translation.translate
 
 python_versions = [('Python {}.{}'.format(*sys.version_info[:2]),
     sys.executable)]
-encodings = ['ascii', 'iso-8859-1', 'utf-8', 'cp850']
+encodings = ['ascii', 'iso-8859-1', 'utf-8']
 
 # Load config
 config_file = os.path.join(this_dir, 'config.json')
