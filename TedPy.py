@@ -367,6 +367,17 @@ class Editor(Frame):
         if docs and self.do_delayed:
             self.syntax_highlight()
 
+    def get_infos(self, ext, pos):
+        if ext == '.html':
+            if "script_in_html" in self.zone.tag_names(pos):
+                for (ext, begin, end) in self.scripts:
+                    if self.zone.compare(begin, "<", pos) and \
+                            self.zone.compare(end, ">", pos):
+                        break
+                else:
+                    return ext, begin, end
+        return ext, 1.0, END
+
     def goto(self, evt):
         browser_line = int(evt.widget.index(CURRENT).split('.')[0])
         line_num = self.function_line_nums[browser_line - 1]
@@ -489,6 +500,7 @@ class Editor(Frame):
         # for a Python script, if line ends with ':', add indent
         file_name = docs[current_doc].file_name
         ext = os.path.splitext(file_name)[1]
+        ext, begin, end = self.get_infos(ext, INSERT)
         if ext == '.py' and txt.strip().endswith(':'):
             self.zone.insert(INSERT, '\n'+
                 (indent + self.spaces_per_tab.get()) * ' ')
@@ -673,23 +685,13 @@ class Editor(Frame):
         self.remove_functions_browser()
         ext = os.path.splitext(docs[current_doc].file_name)[1]
         current = self.zone.index(CURRENT)
-        begin, end = 1.0, END
-        if ext == '.html':
-            if "script_in_html" in self.zone.tag_names(current):
-                for (ext, begin, end) in self.scripts:
-                    if self.zone.compare(begin, "<", current) and \
-                            self.zone.compare(end, ">", current):
-                        break
-                else:
-                    return
-            else:
-                return
-        elif not ext in ['.py', '.js']:
-            return
+        ext, begin, end = self.get_infos(ext, CURRENT)
         if ext == '.py':
             kws = [r'\bdef\b', r'\bclass\b']
         elif ext == '.js':
             kws = [r'\bfunction\b', r'.*=\s*function\b']
+        else:
+            return
         targets = []
         if current == self.zone.index(current + 'lineend'):
             # menu to reach all functions, classes and methods in the script
@@ -1256,6 +1258,9 @@ def new_module(ext):
 
 def open_module(file_name,force_reload=False,force_encoding=None):
     global current_doc
+    if docs and hasattr(docs[current_doc].editor, "browser"):
+        docs[current_doc].editor.browser.destroy()
+        del docs[current_doc].editor.browser
     file_name = os.path.normpath(file_name)
     file_encoding = None
     if not os.path.exists(file_name):
