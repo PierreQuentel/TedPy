@@ -1,5 +1,6 @@
 # TedPy
-Text editor for Python programs
+
+Text editor for HTML, Python and Javascript
 
 ## Supports
 
