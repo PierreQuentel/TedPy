@@ -293,8 +293,6 @@ class Editor(Frame):
 
         zone.tag_config('script_in_html', borderwidth=2, relief=GROOVE,
             lmargin1=15)
-        zone.tag_config('script_first', spacing1=10)
-        zone.tag_config('script_last', spacing3=10)
         zone.tag_config('found', foreground=bg, background=fg)
         zone.tag_config('selection', background=zone['selectbackground'],
             borderwidth=0)
@@ -374,7 +372,7 @@ class Editor(Frame):
                 for (ext, begin, end) in self.scripts:
                     if float(begin) <= float(pos) <= float(end):
                         return ext, begin, end
-        return ext, 1.0, END
+        return ext, "1.0", END
 
     def goto(self, evt):
         browser_line = int(evt.widget.index(CURRENT).split('.')[0])
@@ -799,11 +797,6 @@ class Editor(Frame):
             for (ext, begin, end) in self.scripts:
                 self.highlight_lang(begin, end, ext, in_html=True)
                 self.zone.tag_add('script_in_html', begin, end)
-                # manual top and bottom padding
-                self.zone.tag_add('script_first', begin,
-                    self.zone.index(begin + "lineend"))
-                self.zone.tag_add('script_last',
-                    self.zone.index(end + "-1c linestart"), end)
             return
         if not ext in patterns:
             return
@@ -1378,6 +1371,8 @@ def run(*args):
     else:
         fname = os.path.join(this_dir, "temp.py")
         with open(fname, "w", encoding="utf-8") as out:
+            # Add empty lines to report the correct error line if exception
+            out.write("\n" * (int(float(begin)) - 1))
             out.write(editor.zone.get(begin, end))
     if sys.platform == 'win32':
         # use START in file directory
