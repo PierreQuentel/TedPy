@@ -135,17 +135,15 @@ class HTMLParser(html.parser.HTMLParser):
             self.state = ".js"
             for key, value in attrs:
                 if key == "type":
-                    if value == "text/python":
+                    if value in ["text/python", "text/python3"]:
                         begin = "{}.{}".format(x0, y0 + len(text))
                         self.state = ".py"
                     elif value != "text/javascript":
                         self.state = value
                 elif key == "src":
                     has_src = True
-            if self.state in patterns and not has_src:
-                begin = "{}.{}".format(x0, y0 + len(text))
-                self.scripts.append([self.state,
-                    self.zone.index(begin + "+1c")])
+            if not has_src:
+                self.begin = "{}.{}".format(x0, y0 + len(text))
             else:
                 self.state = None
         x1 = x0 + len(lines) - 1
@@ -164,8 +162,9 @@ class HTMLParser(html.parser.HTMLParser):
     def handle_endtag(self, tag):
         x, y = self.getpos()
         p0 = '{}.{}'.format(x, y)
-        if tag == "script" and self.state is not None:
-            self.scripts[-1].append(p0)
+        if tag == "script" and self.state in patterns:
+            self.scripts.append([self.state,
+                self.zone.index(self.begin + "+1c"), p0])
         closing_pos = self.zone.search('>', p0)
         self.zone.tag_add('keyword', p0, closing_pos + '+1c')
 
@@ -475,11 +474,11 @@ class Editor(Frame):
         txt = self.zone.get(1.0, END).rstrip() + '\n'
         parser = HTMLParser(self)
         # while editing there may be parser error, ignore them
-        try:
-            parser.feed(txt)
-            self.scripts = parser.scripts
-        except:
-            pass
+        #try:
+        parser.feed(txt)
+        self.scripts = parser.scripts
+        #except:
+        #    pass
 
     def insert_cr(self,event):
         """Handle Enter key"""
