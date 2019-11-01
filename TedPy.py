@@ -366,15 +366,14 @@ class Editor(Frame):
         if docs and self.do_delayed:
             self.syntax_highlight()
 
-    def get_infos(self, ext, pos):
+    def get_infos(self, pos):
+        ext = os.path.splitext(docs[current_doc].file_name)[1]
+        pos = self.zone.index(pos)
         if ext == '.html':
             if "script_in_html" in self.zone.tag_names(pos):
                 for (ext, begin, end) in self.scripts:
-                    if self.zone.compare(begin, "<", pos) and \
-                            self.zone.compare(end, ">", pos):
-                        break
-                else:
-                    return ext, begin, end
+                    if float(begin) <= float(pos) <= float(end):
+                        return ext, begin, end
         return ext, 1.0, END
 
     def goto(self, evt):
@@ -497,9 +496,7 @@ class Editor(Frame):
         self.remove_trailing_whitespace()
 
         # for a Python script, if line ends with ':', add indent
-        file_name = docs[current_doc].file_name
-        ext = os.path.splitext(file_name)[1]
-        ext, begin, end = self.get_infos(ext, INSERT)
+        ext, begin, end = self.get_infos(INSERT)
         if ext == '.py' and txt.strip().endswith(':'):
             self.zone.insert(INSERT, '\n'+
                 (indent + self.spaces_per_tab.get()) * ' ')
@@ -682,9 +679,8 @@ class Editor(Frame):
 
     def right_click(self, event):
         self.remove_functions_browser()
-        ext = os.path.splitext(docs[current_doc].file_name)[1]
         current = self.zone.index(CURRENT)
-        ext, begin, end = self.get_infos(ext, CURRENT)
+        ext, begin, end = self.get_infos(CURRENT)
         if ext == '.py':
             kws = [r'\bdef\b', r'\bclass\b']
         elif ext == '.js':
@@ -1355,13 +1351,18 @@ def run(*args):
         return
     if docs[current_doc].file_name is None:
         save_as()
-    if not docs[current_doc].file_name.endswith('.py'):
+    file_ext = os.path.splitext(docs[current_doc].file_name)[1]
+    editor = docs[current_doc].editor
+    ext, begin, end = editor.get_infos(CURRENT)
+    if ext != ".py":
         tkinter.messagebox.showerror(title='Execution error',
             message=_('not_python'))
         return
     save() # in case text or encoding changed
     # check if first line indicates interpreter
-    first_line = docs[current_doc].editor.zone.get(1.0, '1.0lineend')
+    linestart = editor.zone.index(begin + "linestart")
+    lineend = editor.zone.index(begin + "lineend")
+    first_line = docs[current_doc].editor.zone.get(linestart, lineend)
     if first_line.startswith('#!'):
         interp = first_line[2:]
     else:
@@ -1371,10 +1372,15 @@ def run(*args):
         interp = interp[:-5] + interp[-4:]
     if ' ' in interp:
         interp = '"{}"'.format(interp)
-    fname = docs[current_doc].file_name
+    this_dir = os.path.dirname(__file__)
+    if file_ext == ".py":
+        fname = docs[current_doc].file_name
+    else:
+        fname = os.path.join(this_dir, "temp.py")
+        with open(fname, "w", encoding="utf-8") as out:
+            out.write(editor.zone.get(begin, end))
     if sys.platform == 'win32':
         # use START in file directory
-        this_dir = os.path.dirname(__file__)
         with open(os.path.join(this_dir, "run.bat"), "w",
                 encoding="utf-8") as out:
             out.write("""@echo off
