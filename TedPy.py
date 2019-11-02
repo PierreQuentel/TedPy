@@ -1555,8 +1555,7 @@ def switch_to(new_index):
     root.title('TedPy - {}'.format(docs[current_doc].file_name))
     file_browser.select(new_doc)
     docs[current_doc].editor.zone.focus()
-    syntax_highlight.set(docs[current_doc].editor.highlight)
-
+    syntax_highlight.set(getattr(docs[current_doc].editor, "highlight", True))
 
 def update_highlight(*args):
     # update syntax highlighting if option is reset by user
