@@ -1369,10 +1369,12 @@ def run(*args):
     if file_ext == ".py":
         fname = docs[current_doc].file_name
     else:
+        script_dir = os.path.dirname(docs[current_doc].file_name)
         fname = os.path.join(this_dir, "temp.py")
         with open(fname, "w", encoding="utf-8") as out:
             # Add empty lines to report the correct error line if exception
-            out.write("\n" * (int(float(begin)) - 1))
+            out.write("\n" * (int(float(begin)) - 3))
+            out.write(f'import sys\nsys.path[0] = r"{script_dir}"\n')
             out.write(editor.zone.get(begin, end))
     if sys.platform == 'win32':
         # use START in file directory
