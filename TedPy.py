@@ -252,7 +252,7 @@ class Editor(Frame):
         shortcuts.pack(fill=BOTH)
 
         zone = ScrolledText(frame, width=self.text_width(),
-            font=font, wrap=NONE, relief=FLAT, undo=True,
+            font=font, wrap=WORD, relief=FLAT, undo=True,
             autoseparators=True, bg=bg, fg=fg, selectforeground=fg,
             insertbackground=fg, selectbackground=colors['select'])
         zone.vbar.config(command=self.slide)
@@ -493,9 +493,11 @@ class Editor(Frame):
 
         self.remove_trailing_whitespace()
 
-        # for a Python script, if line ends with ':', add indent
+        # For a Python script, if line ends with ':', add indent
+        # Same for a JS files if line ends with '{'
         ext, begin, end = self.get_infos(INSERT)
-        if ext == '.py' and txt.strip().endswith(':'):
+        if (ext == '.py' and txt.strip().endswith(':')) or \
+                (ext == '.js' and txt.strip().endswith('{')):
             self.zone.insert(INSERT, '\n'+
                 (indent + self.spaces_per_tab.get()) * ' ')
         else:
@@ -1241,6 +1243,7 @@ def new_module(ext):
             '</head>\n<body>\n</body>\n</html>')
         editor.zone.insert(1.0, text)
         editor.syntax_highlight()
+        editor.spaces_per_tab.set(2)
     editor.zone.focus()
     root.title('TedPy - {}'.format(docs[current_doc].file_name))
 
@@ -1256,7 +1259,8 @@ def open_module(file_name,force_reload=False,force_encoding=None):
         tkinter.messagebox.showinfo(title=_('opening file'),
                 message=_('File not found'))
         return
-    if os.path.splitext(file_name)[1] == '.py':
+    extension = os.path.splitext(file_name)[1]
+    if extension == '.py':
         # search a line with encoding (see PEP 0263)
         src = open(file_name)
         try:
@@ -1264,7 +1268,7 @@ def open_module(file_name,force_reload=False,force_encoding=None):
             file_encoding = py_encoding(head)
         except UnicodeDecodeError:
             pass
-    elif os.path.splitext(file_name)[1] in ['.html','.htm']:
+    elif extension in ['.html','.htm']:
         # search a meta tag with charset
         if force_encoding is None:
             with open(file_name, newline="", errors='ignore') as fobj:
@@ -1307,6 +1311,8 @@ def open_module(file_name,force_reload=False,force_encoding=None):
             else:
                 file_browser.delete(doc)
     editor = Editor()
+    if extension in (".html", ".htm"):
+        editor.spaces_per_tab.set(2)
     editor.zone.insert(1.0, txt)
     text = editor.zone.get(1.0, '{}-1c'.format(END))
     if docs:
