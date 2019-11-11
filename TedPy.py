@@ -13,7 +13,7 @@ from tkinter.filedialog import *
 import tkinter.messagebox
 import tkinter.simpledialog
 import tkinter.font
-from tkinter import ttk
+from tkinter.scrolledtext import ScrolledText
 
 this_dir = os.path.dirname(__file__)
 
@@ -78,41 +78,6 @@ zones = {
     '.html':[]
     }
 
-style = ttk.Style()
-style.theme_use('clam')
-
-# configure the style
-style.configure("Vertical.TScrollbar",
-                background="White",
-                troughcolor=bg,
-                arrowcolor="Black"
-                )
-
-class ScrolledText(Text):
-
-    def __init__(self, master=None, **kw):
-        self.frame = Frame(master)
-        self.vbar = ttk.Scrollbar(self.frame)
-        self.vbar.pack(side=RIGHT, fill=Y)
-        self.vbar.set(0.1, 0.7)
-
-        kw.update({'yscrollcommand': self.vbar.set})
-        Text.__init__(self, self.frame, **kw)
-        self.pack(side=LEFT, fill=BOTH, expand=True)
-        self.vbar['command'] = self.yview
-
-        # Copy geometry methods of self.frame without overriding Text
-        # methods -- hack!
-        text_meths = vars(Text).keys()
-        methods = vars(Pack).keys() | vars(Grid).keys() | vars(Place).keys()
-        methods = methods.difference(text_meths)
-
-        for m in methods:
-            if m[0] != '_' and m != 'config' and m != 'configure':
-                setattr(self, m, getattr(self.frame, m))
-
-    def __str__(self):
-        return str(self.frame)
 
 # html parser
 class HTMLParser(html.parser.HTMLParser):
