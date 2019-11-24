@@ -73,7 +73,7 @@ zones = {
     '.py':[ ('"""', '"""', 'string'), ("'''", "'''", 'string'),
         ('"', '"', 'string'), ("'", "'", 'string'),
         ('#', '\n', 'comment')],
-    '.js':[('"', '"', 'string'), ("'", "'", 'string'),
+    '.js':[('"', '"', 'string'), ("'", "'", 'string'), ("`", "`", 'string'),
         ('//', '\n', 'comment'), ('/*', '*/', 'comment')],
     '.html':[]
     }
@@ -349,17 +349,6 @@ class Editor(Frame):
         self.print_line_nums()
 
     def highlight_lang(self, begin, end, ext, in_html=False):
-        t0 = time.time()
-        # don't do highlighting too often
-        if self.last_update and \
-            time.time() - self.last_update < self.last_highlight_time:
-            self.do_delayed = True
-            # set a timer that will do a syntax highlight later
-            # if nothing was entered in the meantime
-            self.zone.after(int(1000 * self.last_highlight_time),
-                self.delayed_sh)
-            return
-        self.do_delayed = False
         txt = self.zone.get(begin, end).rstrip() + '\n'
         ltxt = list(txt)
         # mapping between position and line,column
@@ -419,8 +408,7 @@ class Editor(Frame):
                 self.zone.tag_add('too_long', '{}.{}'.format(linenum, 78),
                     '{}.{}'.format(linenum, lineend))
         self.last_update = time.time()
-        self.last_highlight_time = self.last_update - t0
-
+ 
     def home(self,event):
         """Home key : go to start of line, after the indentation"""
         left = self.zone.get('{}linestart'.format(self.zone.index(INSERT)),
@@ -436,11 +424,11 @@ class Editor(Frame):
         txt = self.zone.get(1.0, END).rstrip() + '\n'
         parser = HTMLParser(self)
         # while editing there may be parser error, ignore them
-        #try:
-        parser.feed(txt)
-        self.scripts = parser.scripts
-        #except:
-        #    pass
+        try:
+            parser.feed(txt)
+            self.scripts = parser.scripts
+        except:
+            pass
 
     def insert_cr(self,event):
         """Handle Enter key"""
@@ -767,6 +755,16 @@ class Editor(Frame):
             return
         if not ext in patterns:
             return
+        # don't do highlighting too often
+        if self.last_update and \
+            time.time() - self.last_update < self.last_highlight_time:
+            self.do_delayed = True
+            # set a timer that will do a syntax highlight later
+            # if nothing was entered in the meantime
+            self.zone.after(int(1000 * self.last_highlight_time),
+                self.delayed_sh)
+            return
+        self.do_delayed = False
         self.highlight_lang(1.0, END, ext)
 
     def text_width(self):
