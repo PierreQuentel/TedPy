@@ -6,6 +6,7 @@ import subprocess
 import re
 import time
 import json
+import importlib
 import html.parser
 
 from tkinter import *
@@ -62,22 +63,29 @@ docs = []
 square_brackets = r'[\[\]]'
 curly_braces = r'[\{\}]'
 parenthesis = r'[\(\)]'
-patterns = {'.html':[], '.js':[]} # for Python, set by make_patterns()
-for lang in patterns:
-    patterns[lang] += [(square_brackets, 'square_bracket'),
-        (parenthesis, 'parenthesis'), (curly_braces, 'curly_brace')]
-from js_keywords import js_keywords
-js_keywords = [(r'\b' + kw + r'\b') for kw in js_keywords]
-patterns['.js'].append(('|'.join(js_keywords), 'keyword'))
-zones = {
-    '.py':[ ('"""', '"""', 'string'), ("'''", "'''", 'string'),
-        ('"', '"', 'string'), ("'", "'", 'string'),
-        ('#', '\n', 'comment')],
-    '.js':[('"', '"', 'string'), ("'", "'", 'string'), ("`", "`", 'string'),
-        ('//', '\n', 'comment'), ('/*', '*/', 'comment')],
-    '.html':[]
-    }
 
+# supported languages
+langs = {}
+patterns = {}
+zones = {}
+ext2lang = {}
+
+for lang in os.listdir("languages"):
+    if lang.endswith(".py") and lang != "__init__.py":
+        name = lang.split('.')[0]
+        langs[name] = importlib.import_module(f"languages.{name}")
+        patterns[name] = [(square_brackets, 'square_bracket'),
+            (parenthesis, 'parenthesis'), (curly_braces, 'curly_brace')]
+        keywords = [(r'\b' + kw + r'\b') for kw in langs[name].keywords]
+        patterns[name].append(('|'.join(keywords), 'keyword'))
+        builtins_pattern = '|'.join([r'\b{}\b'.format(b)
+            for b in langs[name].builtins])
+        patterns[name].append((builtins_pattern, 'builtin'))
+
+        zones[name] = langs[name].zones
+
+        for ext in langs[name].extensions:
+            ext2lang[ext] = name
 
 # html parser
 class HTMLParser(html.parser.HTMLParser):
@@ -100,11 +108,14 @@ class HTMLParser(html.parser.HTMLParser):
             self.state = ".js"
             for key, value in attrs:
                 if key == "type":
-                    if value in ["text/python", "text/python3"]:
-                        begin = "{}.{}".format(x0, y0 + len(text))
-                        self.state = ".py"
-                    elif value != "text/javascript":
-                        self.state = value
+                    for lang in langs:
+                        if value in langs[lang].script_types:
+                            begin = "{}.{}".format(x0, y0 + len(text))
+                            self.state = lang
+                            break
+                    else:
+                        if value != "text/javascript":
+                            self.state = value
                 elif key == "src":
                     has_src = True
             if not has_src:
@@ -334,10 +345,11 @@ class Editor(Frame):
         pos = self.zone.index(pos)
         if ext == '.html':
             if "script_in_html" in self.zone.tag_names(pos):
-                for (ext, begin, end) in self.scripts:
+                for (lang, begin, end) in self.scripts:
                     if float(begin) <= float(pos) <= float(end):
-                        return ext, begin, end
-        return ext, "1.0", END
+                        return lang, begin, end
+        lang = ext2lang.get(ext)
+        return lang, "1.0", END
 
     def goto(self, evt):
         browser_line = int(evt.widget.index(CURRENT).split('.')[0])
@@ -348,7 +360,7 @@ class Editor(Frame):
         self.zone.see(INSERT)
         self.print_line_nums()
 
-    def highlight_lang(self, begin, end, ext, in_html=False):
+    def highlight_lang(self, begin, end, lang, in_html=False):
         txt = self.zone.get(begin, end).rstrip() + '\n'
         ltxt = list(txt)
         # mapping between position and line,column
@@ -365,12 +377,12 @@ class Editor(Frame):
             self.zone.tag_remove(tag, begin, end)
         # parse text to find strings, comments, keywords
         pos = 0
-        zones[ext].sort(key=lambda x: len(x[0]), reverse=True)
+        zones[lang].sort(key=lambda x: len(x[0]), reverse=True)
         t1 = time.time()
         nb0 = 0
         while pos < len(txt):
             flag = False
-            for start, stop, ztype in zones[ext]:
+            for start, stop, ztype in zones[lang]:
                 if txt[pos:pos + len(start)] == start:
                     spos = pos + len(start)
                     while True:
@@ -396,7 +408,7 @@ class Editor(Frame):
             if not flag:
                 pos += 1
         raw = ''.join(ltxt) # original text with empty strings and comments
-        for (pattern, tag) in patterns[ext]:
+        for (pattern, tag) in patterns[lang]:
             for mo in re.finditer(pattern, raw, re.S):
                 k1, k2 = mo.start(), mo.end()
                 self.zone.tag_add(tag,'{}.{}'.format(*lc[k1]),
@@ -408,7 +420,7 @@ class Editor(Frame):
                 self.zone.tag_add('too_long', '{}.{}'.format(linenum, 78),
                     '{}.{}'.format(linenum, lineend))
         self.last_update = time.time()
- 
+
     def home(self,event):
         """Home key : go to start of line, after the indentation"""
         left = self.zone.get('{}linestart'.format(self.zone.index(INSERT)),
@@ -633,20 +645,17 @@ class Editor(Frame):
     def right_click(self, event):
         self.remove_functions_browser()
         current = self.zone.index(CURRENT)
-        ext, begin, end = self.get_infos(CURRENT)
-        if ext == '.py':
-            kws = [r'\bdef\b', r'\bclass\b']
-        elif ext == '.js':
-            kws = [r'\bfunction\b', r'.*=\s*function\b']
-        else:
+        lang, begin, end = self.get_infos(CURRENT)
+        struct_patterns = getattr(langs[lang], "struct_patterns", None)
+        if struct_patterns is None:
             return
         targets = []
         if current == self.zone.index(current + 'lineend'):
             # menu to reach all functions, classes and methods in the script
             lines = [x.rstrip() for x in self.zone.get(begin, end).split('\n')]
             for i, line in enumerate(lines):
-                for kw in kws:
-                    if re.match(kw, line.lstrip()):
+                for pattern in struct_patterns:
+                    if re.match(pattern, line.lstrip()):
                         label, num = line[:line.find('(')], i + 1
                         targets.append((label, num))
         else:
@@ -656,7 +665,7 @@ class Editor(Frame):
                 return
             # right-click on string, comment, keyword : ignore
             if set(self.zone.tag_names(current)) & \
-                set(['string', 'comment', 'keyword', 'def_class']):
+                    set(['string', 'comment', 'keyword', 'def_class']):
                 return
             # right-click on identifier : search it in the document
             id_start = self.zone.search(r'[^\w]', CURRENT, backwards=True,
@@ -729,6 +738,7 @@ class Editor(Frame):
         self.print_line_nums()
 
     def syntax_highlight(self):
+        t0 = time.time()
         file_browser.mark_if_changed()
         self.highlight = syntax_highlight.get()
         if not syntax_highlight.get():
@@ -749,11 +759,12 @@ class Editor(Frame):
         if ext == '.html':
             self.html_highlight()
             # highlight the scripts inside <script> tags
-            for (ext, begin, end) in self.scripts:
-                self.highlight_lang(begin, end, ext, in_html=True)
+            for (lang, begin, end) in self.scripts:
+                self.highlight_lang(begin, end, lang, in_html=True)
                 self.zone.tag_add('script_in_html', begin, end)
             return
-        if not ext in patterns:
+        lang = ext2lang.get(ext)
+        if lang is None or not lang in patterns:
             return
         # don't do highlighting too often
         if self.last_update and \
@@ -765,7 +776,9 @@ class Editor(Frame):
                 self.delayed_sh)
             return
         self.do_delayed = False
-        self.highlight_lang(1.0, END, ext)
+        self.highlight_lang(1.0, END, lang)
+        self.last_update = time.time()
+        self.last_highlight_time = self.last_update - t0
 
     def text_width(self):
         pix_per_char = font.measure('0') # pixels per char in this font
@@ -1160,27 +1173,11 @@ def html_encoding(html):
             return mo.groups()[0]
 
 def make_patterns(*args):
-    # build patterns for syntax hightlight, depending on Python version
-    global patterns
-    se = dict(python_versions)[python_version.get()]
-    if not os.path.exists(se):
-        tkinter.messagebox.showerror(title="Configuration error",
-            message="Python interpreter {} not found".format(se))
-        return
-    script = ('import keyword\nout = open("_patterns.py", "w")\n'
-        'out.write("keywords = "+str(keyword.kwlist)+"\\n")\n'
-        'out.write("builtins = {}".format(dir(__builtins__)))\nout.close()')
-    with open('build_patterns.py', 'w', encoding='utf-8') as out:
-        out.write(script)
-    os.system('{} "{}"'.format(se, os.path.join(os.getcwd(),
-        'build_patterns.py')))
-    if not os.getcwd() in sys.path:
-        sys.path.append(os.getcwd())
-    import _patterns, importlib
-    importlib.reload(_patterns)
-    kw_pattern = '|'.join([r'\b{}\b'.format(kw) for kw in _patterns.keywords])
+    importlib.reload(langs["python"])
+    kw_pattern = '|'.join([r'\b{}\b'.format(kw)
+        for kw in langs["python"].keywords])
     builtins_pattern = '|'.join([r'\b{}\b'.format(b)
-        for b in _patterns.builtins])
+        for b in langs["python"].builtins])
     patterns['.py'] = [(kw_pattern, 'keyword'), (builtins_pattern, 'builtin')]
     patterns['.py']+=[(square_brackets, 'square_bracket'),
         (parenthesis, 'parenthesis'), (curly_braces, 'curly_brace')]
