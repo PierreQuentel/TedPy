@@ -646,6 +646,7 @@ class Editor(Frame):
         self.remove_functions_browser()
         current = self.zone.index(CURRENT)
         lang, begin, end = self.get_infos(CURRENT)
+        first_line = self.ix2pos(begin)[0]
         struct_patterns = getattr(langs[lang], "struct_patterns", None)
         if struct_patterns is None:
             return
@@ -656,7 +657,7 @@ class Editor(Frame):
             for i, line in enumerate(lines):
                 for pattern in struct_patterns:
                     if re.match(pattern, line.lstrip()):
-                        label, num = line[:line.find('(')], i + 1
+                        label, num = line[:line.find('(')], i + first_line
                         targets.append((label, num))
         else:
             self.zone.tag_remove('word', begin, end)
@@ -1312,8 +1313,8 @@ def run(*args):
         save_as()
     file_ext = os.path.splitext(docs[current_doc].file_name)[1]
     editor = docs[current_doc].editor
-    ext, begin, end = editor.get_infos(CURRENT)
-    if ext != ".py":
+    lang, begin, end = editor.get_infos(CURRENT)
+    if lang != "python":
         tkinter.messagebox.showerror(title='Execution error',
             message=_('not_python'))
         return
