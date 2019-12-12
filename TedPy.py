@@ -70,7 +70,7 @@ patterns = {}
 zones = {}
 ext2lang = {}
 
-for lang in os.listdir("languages"):
+for lang in os.listdir(os.path.join(this_dir, "languages")):
     if lang.endswith(".py") and lang != "__init__.py":
         name = lang.split('.')[0]
         langs[name] = importlib.import_module(f"languages.{name}")
@@ -460,13 +460,12 @@ class Editor(Frame):
 
         # For a Python script, if line ends with ':', add indent
         # Same for a JS files if line ends with '{'
-        ext, begin, end = self.get_infos(INSERT)
-        if (ext == '.py' and txt.strip().endswith(':')) or \
-                (ext == '.js' and txt.strip().endswith('{')):
-            self.zone.insert(INSERT, '\n'+
-                (indent + self.spaces_per_tab.get()) * ' ')
-        else:
-            self.zone.insert(INSERT, '\n' + indent * ' ')
+        lang, begin, end = self.get_infos(INSERT)
+        self.zone.insert(INSERT, '\n' + indent * ' ')
+        if lang in langs:
+            lineend = getattr(langs[lang], "autoindent_lineend", None)
+            if lineend is not None and txt.strip().endswith(lineend):
+                self.zone.insert(INSERT, self.spaces_per_tab.get() * ' ')
 
         self.print_line_nums()
         return 'break'

@@ -7,3 +7,4 @@ zones = [ ('"""', '"""', 'string'), ("'''", "'''", 'string'),
 extensions = ['.py']
 script_types = ['text/python', 'text/python3']
 struct_patterns = [r'\bdef\b', r'\bclass\b']
+autoindent_lineend = ':'
