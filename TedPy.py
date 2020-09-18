@@ -572,6 +572,8 @@ class Editor(Frame):
                 lines.append((x, bbox))
             elif lines:
                 break
+        if not lines:
+            return
         self.first_visible, self.last_visible = lines[0][0], lines[-1][0]
         self.line_nums.config(state=NORMAL)
         self.line_nums.delete(1.0, END)
@@ -646,6 +648,8 @@ class Editor(Frame):
         current = self.zone.index(CURRENT)
         lang, begin, end = self.get_infos(CURRENT)
         first_line = self.ix2pos(begin)[0]
+        if lang is None:
+            return
         struct_patterns = getattr(langs[lang], "struct_patterns", None)
         if struct_patterns is None:
             return
@@ -1009,13 +1013,18 @@ class Searcher:
         if pos:
             zone = self.zone()
             zone.tag_remove('found', 1.0, END)
-            zone.delete(pos,'{}+{}c'.format(pos, found_length.get()))
-            zone.insert(pos,self.replacement.get())
-            self.search_pos = '{}+{}c'.format(pos,
-                len(self.replacement.get()))
+            end_pos = '{}+{}c'.format(pos, found_length.get())
+            found = zone.get(pos, end_pos)
+            zone.delete(pos, end_pos)
+            if regular_expression.get():
+                repl = re.sub(self.searched.get(), self.replacement.get(),
+                    found)
+            else:
+                repl = self.replacement.get()
+            zone.insert(pos, repl)
+            self.search_pos = '{}+{}c'.format(pos, len(repl))
             self.editor().syntax_highlight()
-            zone.tag_add('found', pos, '{}+{}c'.format(pos,
-                len(self.replacement.get())))
+            zone.tag_add('found', pos, '{}+{}c'.format(pos, len(repl)))
             zone.see(pos)
 
     def make_replace_all(self):
@@ -1312,7 +1321,7 @@ def run(*args):
         save_as()
     file_ext = os.path.splitext(docs[current_doc].file_name)[1]
     editor = docs[current_doc].editor
-    lang, begin, end = editor.get_infos(CURRENT)
+    lang, begin, end = editor.get_infos(INSERT)
     if lang != "python":
         tkinter.messagebox.showerror(title='Execution error',
             message=_('not_python'))
@@ -1338,9 +1347,6 @@ def run(*args):
         script_dir = os.path.dirname(docs[current_doc].file_name)
         fname = os.path.join(this_dir, "temp.py")
         with open(fname, "w", encoding="utf-8") as out:
-            # Add empty lines to report the correct error line if exception
-            out.write("\n" * (int(float(begin)) - 3))
-            out.write(f'import sys\nsys.path[0] = r"{script_dir}"\n')
             out.write(editor.zone.get(begin, end))
     if sys.platform == 'win32':
         # use START in file directory
@@ -1353,10 +1359,13 @@ pause
 exit""".format(interp))
         drive = os.path.splitdrive(fname)[0]
         os.system(drive)
+        save_dir = os.getcwd()
+        os.chdir(this_dir)
         dname = os.path.dirname(fname).replace('/', '\\')
         cmd = r'start {} "{}" "{}"'.format(os.path.join(this_dir, "run.bat"),
             dname, fname)
         os.system(cmd)
+        os.chdir(save_dir)
     else:   # works on Raspbian
         with open('run.sh', 'w', encoding='utf-8') as out:
             out.write('#!/bin/bash\ncd {}\n{} {}\n'.format(
