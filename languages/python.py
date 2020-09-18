@@ -1,6 +1,7 @@
 import keyword
+import builtins
 keywords = keyword.kwlist
-builtins = "{}".format(dir(__builtins__))
+builtins = dir(builtins)
 zones = [ ('"""', '"""', 'string'), ("'''", "'''", 'string'),
         ('"', '"', 'string'), ("'", "'", 'string'),
         ('#', '\n', 'comment')]
