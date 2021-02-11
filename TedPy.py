@@ -1353,17 +1353,18 @@ def run(*args):
         with open(os.path.join(this_dir, "run.bat"), "w",
                 encoding="utf-8") as out:
             out.write("""@echo off
-cd %1%
-{} %2%
+%1%
+cd %2%
+{} %3%
 pause
 exit""".format(interp))
-        drive = os.path.splitdrive(fname)[0]
-        os.system(drive)
         save_dir = os.getcwd()
-        os.chdir(this_dir)
+        drive = os.path.splitdrive(fname)[0]
+        os.chdir(drive)
         dname = os.path.dirname(fname).replace('/', '\\')
-        cmd = r'start {} "{}" "{}"'.format(os.path.join(this_dir, "run.bat"),
-            dname, fname)
+        os.chdir(dname)
+        cmd = r'start {} {} "{}" "{}"'.format(os.path.join(this_dir, "run.bat"),
+            drive, dname, fname)
         os.system(cmd)
         os.chdir(save_dir)
     else:   # works on Raspbian

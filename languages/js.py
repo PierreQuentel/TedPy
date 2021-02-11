@@ -1,6 +1,6 @@
 extensions = ['.js']
 script_types = ['text/javascript']
-struct_patterns = [r'\bfunction\b', r'.*=\s*function\b']
+struct_patterns = [r'\bfunction\b', r'.*=\s*function\(.*\)', r'.*:\s*function\(.*\)']
 keywords = ['break','case','catch', 'const', 'continue','debugger',
     'default','delete','do','else','finally','for','function',
     'if','in','instanceof','let', 'new','return','switch','this',
