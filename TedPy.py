@@ -1341,12 +1341,14 @@ def run(*args):
     if ' ' in interp:
         interp = '"{}"'.format(interp)
     this_dir = os.path.dirname(__file__)
+    script_dir = os.path.dirname(docs[current_doc].file_name)
+    save_sys_path = sys.path[:]
     if file_ext == ".py":
         fname = docs[current_doc].file_name
     else:
-        script_dir = os.path.dirname(docs[current_doc].file_name)
         fname = os.path.join(this_dir, "temp.py")
         with open(fname, "w", encoding="utf-8") as out:
+            out.write(f'import sys\nsys.path[0] = r"{script_dir}"\n')
             out.write(editor.zone.get(begin, end))
     if sys.platform == 'win32':
         # use START in file directory
@@ -1359,14 +1361,21 @@ cd %2%
 pause
 exit""".format(interp))
         save_dir = os.getcwd()
-        drive = os.path.splitdrive(fname)[0]
+        drive = os.path.splitdrive(script_dir)[0]
         os.chdir(drive)
-        dname = os.path.dirname(fname).replace('/', '\\')
-        os.chdir(dname)
+        dname = script_dir.replace('/', '\\')
+        os.chdir(script_dir)
         cmd = r'start {} {} "{}" "{}"'.format(os.path.join(this_dir, "run.bat"),
             drive, dname, fname)
-        os.system(cmd)
-        os.chdir(save_dir)
+        try:
+            os.system(cmd)
+            os.chdir(save_dir)
+            sys.path = save_sys_path
+        except Exception as exc:
+            print('exception', exc)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+
     else:   # works on Raspbian
         with open('run.sh', 'w', encoding='utf-8') as out:
             out.write('#!/bin/bash\ncd {}\n{} {}\n'.format(
