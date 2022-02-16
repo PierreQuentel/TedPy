@@ -1346,9 +1346,9 @@ def run(*args):
     if file_ext == ".py":
         fname = docs[current_doc].file_name
     else:
-        fname = os.path.join(this_dir, "temp.py")
+        temp_name = 'temp_TedPy.py'
+        fname = os.path.join(script_dir, temp_name)
         with open(fname, "w", encoding="utf-8") as out:
-            out.write(f'import sys\nsys.path[0] = r"{script_dir}"\n')
             out.write(editor.zone.get(begin, end))
     if sys.platform == 'win32':
         # use START in file directory
@@ -1359,6 +1359,7 @@ def run(*args):
 cd %2%
 {} %3%
 pause
+del %3%
 exit""".format(interp))
         save_dir = os.getcwd()
         drive = os.path.splitdrive(script_dir)[0]
