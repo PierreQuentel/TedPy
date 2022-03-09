@@ -1354,13 +1354,10 @@ def run(*args):
         # use START in file directory
         with open(os.path.join(this_dir, "run.bat"), "w",
                 encoding="utf-8") as out:
-            out.write("""@echo off
-%1%
-cd %2%
-{} %3%
-pause
-del %3%
-exit""".format(interp))
+            out.write(f"@echo off\n%1%\ncd %2%\n{interp} %3%\npause")
+            if file_ext != '.py':
+                out.write('\ndel %3%')
+            out.write('\nexit')
         save_dir = os.getcwd()
         drive = os.path.splitdrive(script_dir)[0]
         os.chdir(drive)
