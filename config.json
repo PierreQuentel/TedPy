@@ -1,5 +1,10 @@
 {
-    "versions": [],
+    "versions": [
+        ["Python 3.7", "c:\\Python37\\python.exe"],
+        ["Python 3.8", "c:\\Python38\\python.exe"],
+        ["Python 3.9", "c:\\Python39\\python.exe"],
+        ["Python 3.10", "c:\\Python310\\python.exe"]
+    ],
     "encodings": [
         "ascii",
         "iso-8859-1",
