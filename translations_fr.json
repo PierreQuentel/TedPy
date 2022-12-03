@@ -10,6 +10,7 @@
     "encoding": "Encodage",
     "Encoding error": "Erreur d'encodage",
     "encoding_err_msg": "Le fichier ne peut pas être encodé en {}\nEssayer avec un autre encodage :",
+    "extensions": "Extensions",
     "file": "Fichier",
     "file_change": "Le fichier {} a été modifié.\nLe recharger ?",
     "File not found": "Fichier non trouvé",

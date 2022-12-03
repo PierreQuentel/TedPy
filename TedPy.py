@@ -890,6 +890,12 @@ class Searcher:
             Checkbutton(f_buttons, text=_('regular expression'),
                 variable=regular_expression).pack(anchor=W)
         f_buttons.pack(side=LEFT)
+        if files:
+            ext = Frame(f_buttons)
+            Label(ext, text=_('extensions')).pack(anchor=W)
+            self.extensions = Entry(ext)
+            self.extensions.pack()
+            ext.pack(side=BOTTOM, pady=5)
         if repl:
             Button(self.top, text=_('replace next'),
                 command=self.make_replace).pack()
@@ -932,6 +938,8 @@ class Searcher:
         flags = 0
         if case_insensitive.get():
             flags = re.I
+        extensions = [x.strip() for x in self.extensions.get().split()]
+        extensions = [x if x.startswith('.') else '.' + x for x in extensions]
         top = Toplevel()
         zone = ScrolledText(top, width=120, height=40)
         zone.pack()
@@ -942,6 +950,8 @@ class Searcher:
             if '.hg' in dirnames:
                 dirnames.remove('.hg')
             for fname in filenames:
+                if extensions and os.path.splitext(fname)[1] not in extensions:
+                    continue
                 if fname.endswith(('.gz', '.zip')):
                     continue
                 flag_file = False
@@ -962,6 +972,8 @@ class Searcher:
                                 full_path[len(default_dir()) + 1:]))
                             flag_file = True
                         pos_in_src = pos + mo.start()
+                        while src[pos_in_src] == '\n':
+                            pos_in_src += 1
                         lnum = src[:pos_in_src].count('\n')
                         if lnum != save_lnum:
                             zone.insert(END, '\n        line %4s : %s'

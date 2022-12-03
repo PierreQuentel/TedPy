@@ -9,6 +9,7 @@
     "encoding": "Encoding",
     "Encoding error": "Encoding error",
     "encoding_err_msg": "The file cannot be encoded in {}\nTry with another encoding :",
+    "extension": "Extensions",
     "file": "File",
     "file_change": "File {} was modified.\nReload ?",
     "File not found": "File not found",
