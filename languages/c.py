@@ -1,4 +1,4 @@
-extensions = ['.c']
+extensions = ['.c', '.h']
 script_types = ['text/javascript']
 struct_patterns = [r'^[a-zA-Z0-9_]+\(.*\)', '#define .*']
 keywords = [
