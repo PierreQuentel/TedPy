@@ -928,6 +928,23 @@ class Searcher:
             tkinter.messagebox.showinfo(title=_('search'),
                 message=_('Not found'))
 
+    def open_file(self, event):
+        zone = event.widget
+        file_name, line = zone.links[zone.tag_prevrange('link', CURRENT)]
+        for ix, doc in enumerate(docs):
+            if doc.file_name == file_name:
+                docs[current_doc].editor.remove_functions_browser()
+                switch_to(ix)
+                break
+        else:
+            # not found, open file
+            open_module(file_name)
+        ed = docs[current_doc].editor
+        ed.zone.focus()
+        ed.zone.mark_set(INSERT, '{}.0'.format(line + 1))
+        ed.zone.see(INSERT)
+        ed.print_line_nums()
+
     def make_search_files(self):
         txt = self.searched.get()
         pattern = txt
@@ -942,7 +959,12 @@ class Searcher:
         extensions = [x if x.startswith('.') else '.' + x for x in extensions]
         top = Toplevel()
         zone = ScrolledText(top, width=120, height=40)
+        zone.links = {}
         zone.pack()
+        zone.tag_config('link', foreground="blue", underline=1)
+        zone.tag_bind('link', '<Button-1>', self.open_file)
+        zone.tag_bind('link', "<Enter>", lambda *args: zone.config(cursor="hand1"))
+        zone.tag_bind('link', "<Leave>", lambda *args: zone.config(cursor=""))
         top.title(_('search_in_files').format(default_dir()))
         zone.insert(END, _('string').format(txt))
         for dirpath, dirnames, filenames in os.walk(default_dir()):
@@ -976,8 +998,12 @@ class Searcher:
                             pos_in_src += 1
                         lnum = src[:pos_in_src].count('\n')
                         if lnum != save_lnum:
-                            zone.insert(END, '\n        line %4s : %s'
-                                %(lnum+1, lines[lnum][:100]))
+                            zone.insert(END, '\n        ')
+                            zone.insert(END, 'line %4s' %(lnum+1), "link")
+                            zone.links[zone.tag_prevrange('link', CURRENT)] = (
+                                full_path, lnum)
+                            zone.insert(END, ' : %s'
+                                %(lines[lnum][:100]))
                             save_lnum = lnum
                         pos += mo.start() + len(txt)
                         rest = rest[mo.start() + len(txt):]
@@ -1228,7 +1254,7 @@ def new_module(ext):
     editor.zone.focus()
     root.title('TedPy - {}'.format(docs[current_doc].file_name))
 
-def open_module(file_name,force_reload=False,force_encoding=None):
+def open_module(file_name, force_reload=False, force_encoding=None):
     global current_doc
     if docs and hasattr(docs[current_doc].editor, "browser"):
         docs[current_doc].editor.browser.destroy()
