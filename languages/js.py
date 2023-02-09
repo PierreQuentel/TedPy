@@ -1,4 +1,4 @@
-extensions = ['.js']
+extensions = ['.js', '.ts']
 script_types = ['text/javascript']
 struct_patterns = [r'\s*\bfunction\*?\b',
                    r'\s*.*=\s*function\*?\(.*',
