@@ -7,8 +7,8 @@ keywords = [
     'long',    'register',    'return',    'short', 'signed',    'sizeof','static',
     'struct',    'switch',    'typedef',    'union',    'unsigned',    'void',    'volatile',
     'while']
-builtins = ['#include', '#define', '#ifndef', '#endif', 
+builtins = ['#include', '#define', '#ifndef', '#endif',
             'NULL', 'RegExp']
-zones = [('"', '"', 'string'), ("'", "'", 'string'), ("`", "`", 'string'),
-        ('//', '\n', 'comment'), ('/*', '*/', 'comment')]
+zones = [('/*', '*/', 'comment'), ('//', '\n', 'comment'),
+         ('"', '"', 'string'), ("'", "'", 'string'), ("`", "`", 'string')]
 autoindent_lineend = '{'

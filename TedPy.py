@@ -385,13 +385,18 @@ class Editor(Frame):
             for start, stop, ztype in zones[lang]:
                 if txt[pos:pos + len(start)] == start:
                     spos = pos + len(start)
-                    while True:
-                        s_end = txt.find(stop, spos)
-                        if (s_end != -1 and txt[s_end - 1] == '\\'
-                                and txt[s_end - 2] != '\\'):
+                    s_end = -1
+                    nb_escape = 0
+                    while spos < len(txt):
+                        if txt[spos:spos + len(stop)] == stop and nb_escape % 2 == 0:
+                            s_end = spos
                             spos = s_end + 1
-                        else:
                             break
+                        elif txt[spos] == '\\':
+                            nb_escape += 1
+                        else:
+                            nb_escape = 0
+                        spos += 1
                     if s_end > -1:
                         # set zone to whitespace for next markup
                         for i in range(pos, s_end + len(stop)):
