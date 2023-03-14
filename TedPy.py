@@ -344,6 +344,7 @@ class Editor(Frame):
         ext = os.path.splitext(docs[current_doc].file_name)[1]
         pos = self.zone.index(pos)
         if ext == '.html':
+            self.html_highlight() # reset self.scripts
             if "script_in_html" in self.zone.tag_names(pos):
                 for (lang, begin, end) in self.scripts:
                     if float(begin) <= float(pos) <= float(end):
@@ -444,7 +445,7 @@ class Editor(Frame):
         try:
             parser.feed(txt)
             self.scripts = parser.scripts
-        except:
+        except Exception as exc:
             pass
 
     def insert_cr(self,event):
