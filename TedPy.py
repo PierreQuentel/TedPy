@@ -1314,8 +1314,6 @@ def open_module(file_name, force_reload=False, force_encoding=None):
     for i, doc in enumerate(docs):
         if file_name == doc.file_name:
             if not force_reload:
-                tkinter.messagebox.showerror(title=_('opening_file'),
-                    message=_('already_open_err_msg'))
                 switch_to(i)
                 file_browser.select_clear(0, END)
                 file_browser.select(doc)
