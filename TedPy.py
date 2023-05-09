@@ -285,6 +285,7 @@ class Editor(Frame):
         self.shift = False
         self.control = False
         self.last_update = None
+        self.last_highlight_time = 0.5
 
     def button_release(self, event):
         self.zone['cursor'] = 'xterm'
@@ -1298,7 +1299,7 @@ def open_module(file_name, force_reload=False, force_encoding=None):
         # internally use \n, otherwise tkinter adds an extra whitespace
         # for each line
         txt = txt.replace('\r\n', '\n')
-    except UnicodeDecodeError: # try another encoding
+    except (LookupError, UnicodeDecodeError): # try another encoding
         new_enc = EncodingChooser(_('Encoding error'),
             _('encoding_err_msg').format(encoding_for_next_open.get()),
             initialvalue=encoding_for_next_open)
