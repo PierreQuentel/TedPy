@@ -1146,36 +1146,6 @@ def _close(*args):
 
 close_menu = None
 
-def close_bracket(*args):
-    """Insert the closing bracket matching the latest opening, or does
-    nothing."""
-    global current_doc, close_menu
-    if not docs:
-        return
-    zone = docs[current_doc].editor.zone
-    pattern = r'[{[()\]}]'
-    closing = dict(zip("{[(", "}])"))
-    opening = dict(zip("}])", "{[("))
-    stack = {bracket: 0 for bracket in '{[('}
-    p = zone.index(INSERT)
-    while True:
-        p = zone.search(pattern, p, stopindex=1.0,
-            regexp=True, backwards=True)
-        if not p:
-            break
-        if 'string' in zone.tag_names(p):
-            p = zone.index(p + "-1c")
-            continue
-        else:
-            c = zone.get(p)
-            if c not in stack:
-                stack[opening[c]] += 1
-            else:
-                if stack[c] == 0:
-                    zone.insert(INSERT, closing[c])
-                    return
-                stack[c] -= 1
-
 def close_dialog(event):
     global current_doc, close_menu
     if not docs:
@@ -1648,7 +1618,6 @@ except IOError:
 menubar.add_cascade(menu=menuModule, label=_('file'))
 
 menuEdition=Menu(menubar, tearoff=0)
-menuEdition.add_command(label=_('close bracket'), command=close_bracket)
 menuEdition.add_command(label=_('search'), command=search, accelerator="F5")
 menuEdition.add_command(label=_('search in files'), command=search_in_files,
     accelerator="F6")
@@ -1674,7 +1643,7 @@ for lf in linefeeds:
 menuConfig.add_cascade(menu=menuLinefeed, label=_('linefeed'))
 
 menuInterpreter = Menu(menuConfig, tearoff=0)
-for py_ver,py_int in python_versions:
+for py_ver, py_int in python_versions:
     menuInterpreter.add_radiobutton(label=py_ver, variable=python_version)
 menuConfig.add_cascade(menu=menuInterpreter, label=_('Python version'))
 
@@ -1690,7 +1659,6 @@ root.bind('<Control-r>', run)
 root.bind('<F5>', search)
 root.bind('<F6>', search_in_files)
 root.bind('<F8>', replace)
-root.bind('<F9>', close_bracket)
 root.protocol('WM_DELETE_WINDOW', close_window)
 
 class FileBrowser(tkinter.Text):
