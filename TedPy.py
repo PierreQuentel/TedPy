@@ -129,6 +129,8 @@ class HTMLParser(html.parser.HTMLParser):
             y1 = len(lines[-1])
         self.zone.tag_add('keyword', '{}.{}'.format(x0, y0),
             '{}.{}'.format(x0, y0 + 1 + len(tag)))
+        self.zone.tag_add('kw_start', '{}.{}'.format(x0, y0),
+            '{}.{}'.format(x0, y0 + 1 + len(tag)))
         self.zone.tag_add('comment',
             '{}.{}'.format(x0, y0 + 1 + len(tag)),
             '{}.{}'.format(x1, y1))
@@ -341,8 +343,11 @@ class Editor(Frame):
         if docs and self.do_delayed:
             self.syntax_highlight()
 
+    def get_extension(self):
+        return os.path.splitext(docs[current_doc].file_name)[1]
+
     def get_infos(self, pos):
-        ext = os.path.splitext(docs[current_doc].file_name)[1]
+        ext = self.get_extension()
         pos = self.zone.index(pos)
         if ext == '.html':
             self.html_highlight() # reset self.scripts
@@ -512,8 +517,7 @@ class Editor(Frame):
         if not syntax_highlight.get():
             return
 
-        file_name = docs[current_doc].file_name
-        ext = os.path.splitext(file_name)[1]
+        ext = self.get_extension()
         if not ext in ['.py', '.js']:
             return
         self.zone.tag_remove('matching_brace', '1.0', END)
@@ -653,6 +657,9 @@ class Editor(Frame):
     def right_click(self, event):
         self.remove_functions_browser()
         current = self.zone.index(CURRENT)
+        if self.get_extension() == '.html':
+            print('right click html', current, self.zone.tag_names(current))
+            return
         lang, begin, end = self.get_infos(CURRENT)
         first_line = self.ix2pos(begin)[0]
         if lang is None:
@@ -765,8 +772,7 @@ class Editor(Frame):
                 message=_('cannot_encode').format(self.encoding.get()))
             self.zone.delete(self.zone.index('{}-1c'.format(INSERT)))
 
-        file_name = docs[current_doc].file_name
-        ext = os.path.splitext(file_name)[1]
+        ext = self.get_extension()
         if ext == '.html':
             self.html_highlight()
             # highlight the scripts inside <script> tags
@@ -1263,7 +1269,7 @@ def open_module(file_name, force_reload=False, force_encoding=None):
     if not file_encoding:
         file_encoding = encoding_for_next_open.get()
     try:
-        txt = open(file_name, 'r', encoding=file_encoding, newline="").read()
+        txt = open(file_name, 'r', encoding=file_encoding).read()
         txt = txt.replace('\t', ' ' * spaces_per_tab.get())
         linefeed.set(guess_linefeed(txt))
         # internally use \n, otherwise tkinter adds an extra whitespace
