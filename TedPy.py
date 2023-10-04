@@ -1190,15 +1190,15 @@ def guess_linefeed(txt):
 
 def html_encoding(html):
     # form <meta charset="...">
-    mo = re.search('\<meta\s+charset="(.*?)"\s*/?\>', html, re.I)
+    mo = re.search(r'<meta\s+charset="(.*?)"\s*/?>', html, re.I)
     if mo:
         return mo.groups(0)[0]
     # form <meta http-equiv="content-type" type="...;charset=...">
-    pattern = '\<meta\s+http-equiv\s*=\s*"content-type"\s+content\s*=\s*(.+?)".*\/?>'
+    pattern = r'<meta\s+http-equiv\s*=\s*"content-type"\s+content\s*=\s*(.+?)".*/?>'
     mo = re.search(pattern, html, re.I)
     if mo:
         content = mo.groups()[0]
-        mo = re.search('charset\s*=\s*(.+)', content, re.I + re.S)
+        mo = re.search(r'charset\s*=\s*(.+)', content, re.I + re.S)
         if mo:
             return mo.groups()[0]
 
@@ -1325,7 +1325,7 @@ def open_module(file_name, force_reload=False, force_encoding=None):
     new_doc.editor.zone.focus()
 
 def py_encoding(head):
-    mo = re.search('(?s)coding\s*[:=]\s*([-\w.]+)', head, re.M)
+    mo = re.search(r'(?s)coding\s*[:=]\s*([-\w.]+)', head, re.M)
     if mo:
         return mo.groups()[0]
 
