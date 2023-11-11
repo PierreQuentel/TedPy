@@ -673,7 +673,7 @@ class Editor(Frame):
             lines = [x.rstrip() for x in self.zone.get(begin, end).split('\n')]
             for i, line in enumerate(lines):
                 for pattern in struct_patterns:
-                    if re.match(pattern, line):
+                    if re.search(pattern, line):
                         label, num = line[:line.find('(')], i + first_line
                         targets.append((label, num))
         else:

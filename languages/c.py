@@ -1,6 +1,6 @@
 extensions = ['.c', '.h']
 script_types = ['text/javascript']
-struct_patterns = [r'^[a-zA-Z0-9_]+\(.*\)', '#define .*']
+struct_patterns = [r'^[a-zA-Z0-9_]+\(.*', '#define .*']
 keywords = [
     'auto',    'break',    'case',    'char',    'const',    'continue',    'default',    'do',
     'double',    'else', 'enum', 'extern',    'float',    'for',    'goto',    'if', 'int',
