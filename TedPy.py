@@ -282,6 +282,7 @@ class Editor(Frame):
         zone.pack(expand=YES, fill=BOTH)
 
         self.zone = zone
+        self.scripts = []
         self.frame = frame
         self.line_nums = line_nums
         self.shift = False
@@ -774,6 +775,8 @@ class Editor(Frame):
 
         ext = self.get_extension()
         if ext == '.html':
+            for (lang, begin, end) in self.scripts:
+                self.zone.tag_remove('script_in_html', begin, end)
             self.html_highlight()
             # highlight the scripts inside <script> tags
             for (lang, begin, end) in self.scripts:
