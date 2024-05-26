@@ -826,7 +826,7 @@ class Editor(Frame):
         if self.shift:
             if event.keysym in ['Shift_R', 'Shift_L']:
                 self.shift = False
-            if not event.char:
+            if not event.char or not event.char.string:
                 return
         if not event.keysym in ['Up', 'Down', 'Left', 'Right', 'Next',
                 'Prior', 'Home', 'End', 'Control_L', 'Control_R']:
