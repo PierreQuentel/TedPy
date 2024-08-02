@@ -826,7 +826,8 @@ class Editor(Frame):
         if self.shift:
             if event.keysym in ['Shift_R', 'Shift_L']:
                 self.shift = False
-            if not event.char or not event.char.string:
+            if not event.char or \
+                    (hasattr(event.char, 'string') and not event.char.string):
                 return
         if not event.keysym in ['Up', 'Down', 'Left', 'Right', 'Next',
                 'Prior', 'Home', 'End', 'Control_L', 'Control_R']:
@@ -1431,9 +1432,10 @@ def save_as():
 def save_history(doc):
     file_name = doc.file_name
     try:
-        history = [os.path.normpath(line.strip())
-            for line in open(h_path, encoding="utf-8").readlines()
-            if line.strip() and not line.strip() == file_name] + [file_name]
+        with open(h_path, encoding="utf-8") as f:
+            history = [os.path.normpath(line.strip())
+                for line in f
+                if line.strip() and not line.strip() == file_name] + [file_name]
     except IOError:
         out = open(h_path, 'w', encoding="utf-8")
         out.write(file_name + '\n')
@@ -1610,10 +1612,11 @@ nb_menu_items = menuModule.index(END)
 h_path = os.path.join(this_dir, "history.txt")
 try:
     history = []
-    for line in open(h_path, encoding="utf-8").readlines():
-        path = os.path.normpath(line.strip())
-        if not path in history:
-            history.append(path)
+    with open(h_path, encoding="utf-8") as f:
+        for line in f:
+            path = os.path.normpath(line.strip())
+            if not path in history:
+                history.append(path)
 
     if history:
         menuModule.add_separator()
