@@ -1,5 +1,7 @@
 {
     "versions": [
+        ["Local build", "d:\\cpython\\PCBuild\\amd64\\python_d.exe"],
+        ["Python 3.12", "c:\\Python312\\python.exe"],
         ["Python 3.11", "c:\\Python311\\python.exe"],
         ["Python 3.10", "c:\\Python310\\python.exe"],
         ["Python 3.9", "c:\\Python39\\python.exe"],
