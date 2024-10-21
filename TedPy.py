@@ -201,6 +201,14 @@ class Editor(Frame):
             widget.bind('<Button-1>', callback)
             widget.pack(side=LEFT, anchor=W)
 
+        self.special_box = False
+        for car in 'á':
+            widget = Label(shortcuts, text=car, relief=RIDGE, bg='#FFF',
+                foreground='#000', font=sh_font)
+            widget['width'] = 2
+            widget.bind('<Button-1>', self.show_special)
+            widget.pack(side=LEFT, anchor=W)
+
         widget = Button(shortcuts, text='X', font=sh_font, relief=RIDGE)
         widget.bind('<Button-1>', _close)
         widget.pack(side=RIGHT, anchor=E)
@@ -483,6 +491,13 @@ class Editor(Frame):
         self.print_line_nums()
         return 'break'
 
+    def insert_special(self, event):
+        if self.zone.tag_ranges(SEL):
+            self.zone.delete(*self.zone.tag_ranges(SEL))
+        self.zone.insert(INSERT, event.widget.cget('text'))
+        self.special_box.destroy()
+        self.special_box = False
+
     def insert_tab(self,event):
         """Replace tabs by a number of spaces"""
         sel = self.zone.tag_ranges(SEL)
@@ -751,6 +766,20 @@ class Editor(Frame):
         for value in [2, 4]:
             menu.add_radiobutton(label=value, variable=self.spaces_per_tab)
         menu.post(event.x_root, event.y_root)
+
+    def show_special(self, event):
+        if self.special_box:
+            self.special_box.destroy()
+            self.special_box = False
+        else:
+            self.special_box = Toplevel()
+            for car in 'áíóú':
+                w = Label(self.special_box, text=car, relief=RIDGE,
+                    font=sh_font)
+                w.pack(side=LEFT, anchor=W)
+                w.bind('<Button-1>', self.insert_special)
+            h = int(1.1 * abs(sh_font['size']))
+            self.special_box.geometry(f'1x{h}+{event.x_root}+{event.y_root}')
 
     def slide(self,*args):
         self.zone.yview(*args)
@@ -1748,7 +1777,7 @@ right.pack(expand=YES, fill=BOTH)
 
 check_file_change()
 
-if len(sys.argv)>1:
+if len(sys.argv) > 1:
     open_module(sys.argv[1])
 
 root.mainloop()
