@@ -166,7 +166,7 @@ class Document:
                 num += 1
         self.file_name = os.path.normpath(file_name)
         self.text = text
-        self.ext = ext
+        self.ext = ext or os.path.splitext(file_name)[1][1:]
 
 
 class EncodingChooser(tkinter.simpledialog._QueryDialog):
@@ -242,6 +242,7 @@ class Editor(Frame):
             autoseparators=True, bg=bg, fg=fg, selectforeground=fg,
             insertbackground=fg, selectbackground=colors['select'])
         zone.vbar.config(command=self.slide)
+        zone.config(yscrollcommand=self.text_scroll)
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
         text_height = int(int(root.winfo_screenheight() * 0.92) / line_height)
         zone['height'] = text_height
@@ -587,41 +588,16 @@ class Editor(Frame):
         self.print_line_nums()
         return 'break'
 
-    def print_line_nums(self,*args):
-        w_height = int(self.zone.winfo_geometry().split('+')[0].split('x')[0])
-        nb_lignes = int(self.zone.index('{}-1c'.format(END)).split('.')[0])
-        _format = '{{:{}d}}'.format(len(str(nb_lignes + 1)))
-        # find visible lines
-        lines = []
-        for x in range(1, nb_lignes + 1):
-            bbox = self.zone.dlineinfo(self.zone.index('{}.0'.format(x)))
-            if bbox: # line is visible
-                lines.append((x, bbox))
-            elif lines:
-                break
-        if not lines:
-            return
-        self.first_visible, self.last_visible = lines[0][0], lines[-1][0]
+    def print_line_nums(self, *args):
+        nb_lines = int(self.zone.index('{}-1c'.format(END)).split('.')[0])
+        nb_cars = len(str(nb_lines))
+        lines = '\n'.join(str(i + 1).rjust(nb_cars) + ' '
+            for i in range(nb_lines))
         self.line_nums.config(state=NORMAL)
+        self.line_nums['width'] = 2 + len(str(nb_lines + 1))
         self.line_nums.delete(1.0, END)
-        self.line_nums['width'] = 1 + len(str(nb_lignes + 1))
-        self.zone['width'] = self.text_width() - self.line_nums['width']
-        first_offset = offset = lines[0][1][1]
-        char_height = self.line_nums.bbox('1.0')[3] # line height in pixels
-        for line_num, bbox in lines:
-            nb = (bbox[1] - offset) / char_height
-            self.line_nums.insert(END, '\n' * int(nb - 1)) # empty lines
-            self.line_nums.insert(END, (_format.format(line_num)) + '\n')
-            offset = bbox[1]
-        last_line_height = (w_height - lines[-1][1][1]) / char_height
-        self.line_nums.insert(END, '\n' * int(last_line_height - 1))
-        self.line_nums.insert(END, '\n' * 10) # to be able to move vertically
-        # compute line nums offset to be aligned with text
-        nb_line_nums = int(self.line_nums.index(END).split('.')[0])
-        line_nums_height = char_height * nb_line_nums
-        first_line_num_offset = self.line_nums.bbox('1.0')[1]
-        move = (first_line_num_offset - first_offset) / line_nums_height
-        self.line_nums.yview(MOVETO, move)
+        self.line_nums.insert(1.0, lines)
+        self.line_nums.yview('moveto', self.zone.yview()[0])
         self.line_nums.config(state=DISABLED)
 
     def redo(self,*args):
@@ -781,9 +757,9 @@ class Editor(Frame):
             h = int(1.1 * abs(sh_font['size']))
             self.special_box.geometry(f'1x{h}+{event.x_root}+{event.y_root}')
 
-    def slide(self,*args):
+    def slide(self, *args):
         self.zone.yview(*args)
-        self.print_line_nums()
+        self.line_nums.yview(*args)
 
     def syntax_highlight(self):
         t0 = time.time()
@@ -829,6 +805,10 @@ class Editor(Frame):
         self.last_update = time.time()
         self.last_highlight_time = self.last_update - t0
 
+    def text_scroll(self, y1, y2):
+        self.zone.vbar.set(y1, y2) # default behaviour
+        self.line_nums.yview_moveto(self.zone.yview()[0])
+
     def text_width(self):
         pix_per_char = font.measure('0') # pixels per char in this font
         return int(0.85 * root.winfo_screenwidth() / pix_per_char)
@@ -863,9 +843,7 @@ class Editor(Frame):
             self.syntax_highlight()
         self.mark_brace(INSERT)
         if not event.char:
-            if (event.keysym in ['Next', 'Prior', 'BackSpace', 'Delete']
-                    or self.current_line < self.first_visible
-                    or self.current_line > self.last_visible):
+            if event.keysym in ['Next', 'Prior', 'BackSpace', 'Delete']:
                 self.print_line_nums()
             if getattr(self, "delete_end", False):
                 # delete at line end : remove next line indentation
@@ -940,6 +918,7 @@ class Searcher:
             ext = Frame(f_buttons)
             Label(ext, text=_('extensions')).pack(anchor=W)
             self.extensions = Entry(ext)
+            self.extensions.insert(INSERT, docs[current_doc].ext)
             self.extensions.pack()
             ext.pack(side=BOTTOM, pady=5)
         if repl:
@@ -1030,7 +1009,11 @@ class Searcher:
                 pos = 0
                 save_lnum = None
                 while True:
-                    mo = re.search(pattern, rest, flags=flags)
+                    try:
+                        mo = re.search(pattern, rest, flags=flags)
+                    except:
+                        print('error with pattern', pattern)
+                        raise
                     if mo:
                         if not flag_dir:
                             zone.insert(END,'\n\n' + dirpath)
@@ -1064,7 +1047,7 @@ class Searcher:
         if self.search_end:
             kw['stopindex'] = self.search_end
         if full_word.get():
-            for car in '[](){}$^':
+            for car in '[](){}$^.':
                 pattern = pattern.replace(car, '\\'+car)
             pattern = r'(^|[^\w\d_$]){}($|[^\w\d_$])'.format(pattern)
             regexp = True
