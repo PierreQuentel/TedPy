@@ -238,11 +238,10 @@ class Editor(Frame):
         shortcuts.pack(fill=BOTH)
 
         zone = ScrolledText(frame, width=self.text_width(),
-            font=font, wrap=WORD, relief=FLAT, undo=True,
+            font=font, wrap='none', relief=FLAT, undo=True,
             autoseparators=True, bg=bg, fg=fg, selectforeground=fg,
             insertbackground=fg, selectbackground=colors['select'])
         zone.vbar.config(command=self.slide)
-        zone.config(yscrollcommand=self.text_scroll)
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
         text_height = int(int(root.winfo_screenheight() * 0.92) / line_height)
         zone['height'] = text_height
@@ -804,10 +803,6 @@ class Editor(Frame):
         self.highlight_lang(1.0, END, lang)
         self.last_update = time.time()
         self.last_highlight_time = self.last_update - t0
-
-    def text_scroll(self, y1, y2):
-        self.zone.vbar.set(y1, y2) # default behaviour
-        self.line_nums.yview_moveto(self.zone.yview()[0])
 
     def text_width(self):
         pix_per_char = font.measure('0') # pixels per char in this font
