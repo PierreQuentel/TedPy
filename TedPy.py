@@ -238,7 +238,7 @@ class Editor(Frame):
         shortcuts.pack(fill=BOTH)
 
         zone = ScrolledText(frame, width=self.text_width(),
-            font=font, wrap='none', relief=FLAT, undo=True,
+            font=font, wrap=WORD, relief=FLAT, undo=True,
             autoseparators=True, bg=bg, fg=fg, selectforeground=fg,
             insertbackground=fg, selectbackground=colors['select'])
         zone.vbar.config(command=self.slide)
@@ -270,7 +270,7 @@ class Editor(Frame):
         zone.bind('<Button-3>', self.right_click)
         zone.bind('<Control-KeyRelease-v>', self.paste)
         zone.bind('<Control-Key>', self.set_control)
-        zone.bind('<Configure>', self.print_line_nums)
+        zone.bind('<Configure>', self.configure)
         zone.bind('<Home>', self.home)
 
         for tag in ('comment', 'string', 'keyword', 'builtin', 'parenthesis',
@@ -346,6 +346,9 @@ class Editor(Frame):
         if close_menu is not None:
             close_menu.unpost()
             close_menu = None
+
+    def configure(self, event):
+        self.zone.after(500, self.print_line_nums)
 
     def delayed_sh(self):
         # delayed syntax highlighting, launched by a timer
@@ -597,6 +600,28 @@ class Editor(Frame):
         self.line_nums.delete(1.0, END)
         self.line_nums.insert(1.0, lines)
         self.line_nums.yview('moveto', self.zone.yview()[0])
+        self.zone.after(500, self.end_line_nums)
+
+    def end_line_nums(self):
+        # print_line_nums() doesn't handle wrapped lines
+        # estimate the maximum number of characters in a line
+        usable = panel.winfo_width() - self.line_nums.winfo_width() - \
+            self.zone.vbar.winfo_width()
+        max_chars = 0.95 * int(usable / font.measure('0'))
+        text = self.zone.get(1.0, END)
+        lines = text.split('\n')
+        nb_added = 0
+        for i, line in enumerate(lines):
+            if len(line) >= max_chars:
+                # get actual number of displayed lines in the zone
+                nb_displayed = self.zone.count(f'{i + 1}.0',
+                        f'{i + 2}.0', 'displaylines')
+                if nb_displayed and nb_displayed[0] > 1:
+                    # insert appropriate number of empty line nums
+                    nb_add = nb_displayed[0] - 1
+                    self.line_nums.insert(f'{i + 2 + nb_added}.0', nb_add * ' \n')
+                    nb_added += nb_add
+        self.line_nums.yview_moveto(self.zone.yview()[0])
         self.line_nums.config(state=DISABLED)
 
     def redo(self,*args):
