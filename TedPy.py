@@ -251,7 +251,7 @@ class Editor(Frame):
         hbar['command'] = zone.xview
         zone['xscrollcommand'] = hbar.set
 
-        line_nums=Text(frame, width=3, background=bg, font=font,
+        line_nums = Text(frame, width=3, background=bg, font=font,
             selectbackground='#fff', foreground='#808080',
             highlightthickness=0, relief=FLAT, state=DISABLED)
         line_nums.bind('<B1-Motion>', lambda ev: 'break')
@@ -369,6 +369,17 @@ class Editor(Frame):
                         return lang, begin, end
         lang = ext2lang.get(ext)
         return lang, "1.0", END
+
+    def get_visible_text(self):
+        """Inspired by https://stackoverflow.com/questions/76691615"""
+        widget = self.zone
+        y = widget.winfo_height()
+        bd = int(widget.cget("borderwidth"))
+        start_index = int(widget.index(f"@0,{bd} linestart").split('.')[0])
+        end_index = int(widget.index(f"@0,{y} linestart").split('.')[0])
+        if widget.bbox(f'{end_index + 1}.0') is not None:
+            end_index += 1
+        return start_index, end_index
 
     def goto(self, evt):
         browser_line = int(evt.widget.index(CURRENT).split('.')[0])
@@ -591,37 +602,35 @@ class Editor(Frame):
         return 'break'
 
     def print_line_nums(self, *args):
+        start, end = self.get_visible_text()
+        line_nums = []
+        bbox = None
+        for first_visible in range(start, end + 1):
+            bbox = self.zone.bbox(f'{first_visible}.0linestart')
+            if bbox is not None:
+                break
+            else:
+                bbox_end = self.zone.bbox(f'{first_visible}.0lineend')
+                if bbox_end is not None:
+                    nb_visible_lines = round(0.5 +
+                        bbox_end[1] / bbox_end[3])
+                    line_nums += [' '] * nb_visible_lines
+        y_offset = bbox[1] if bbox is not None else 0
         nb_lines = int(self.zone.index('{}-1c'.format(END)).split('.')[0])
-        nb_cars = len(str(nb_lines))
-        lines = '\n'.join(str(i + 1).rjust(nb_cars) + ' '
-            for i in range(nb_lines))
+        nb_chars = len(str(nb_lines))
+        for i in range(first_visible, end + 1):
+            line_nums.append(str(i).rjust(nb_chars))
+            nb_physical_lines = self.zone.count(f'{i}.0', f'{i + 1}.0',
+                'displaylines')
+            if nb_physical_lines and nb_physical_lines[0] > 1:
+                line_nums += [' '] * (nb_physical_lines[0] - 1)
+        if y_offset < 0:
+            line_nums.append(' ' * nb_chars)
         self.line_nums.config(state=NORMAL)
         self.line_nums['width'] = 2 + len(str(nb_lines + 1))
         self.line_nums.delete(1.0, END)
-        self.line_nums.insert(1.0, lines)
-        self.line_nums.yview('moveto', self.zone.yview()[0])
-        self.zone.after(500, self.end_line_nums)
-
-    def end_line_nums(self):
-        # print_line_nums() doesn't handle wrapped lines
-        # estimate the maximum number of characters in a line
-        usable = panel.winfo_width() - self.line_nums.winfo_width() - \
-            self.zone.vbar.winfo_width()
-        max_chars = 0.95 * int(usable / font.measure('0'))
-        text = self.zone.get(1.0, END)
-        lines = text.split('\n')
-        nb_added = 0
-        for i, line in enumerate(lines):
-            if len(line) >= max_chars:
-                # get actual number of displayed lines in the zone
-                nb_displayed = self.zone.count(f'{i + 1}.0',
-                        f'{i + 2}.0', 'displaylines')
-                if nb_displayed and nb_displayed[0] > 1:
-                    # insert appropriate number of empty line nums
-                    nb_add = nb_displayed[0] - 1
-                    self.line_nums.insert(f'{i + 2 + nb_added}.0', nb_add * ' \n')
-                    nb_added += nb_add
-        self.line_nums.yview_moveto(self.zone.yview()[0])
+        self.line_nums.insert(1.0, '\n'.join(line_nums))
+        self.line_nums.yview('scroll', -y_offset, 'pixels')
         self.line_nums.config(state=DISABLED)
 
     def redo(self,*args):
@@ -783,7 +792,7 @@ class Editor(Frame):
 
     def slide(self, *args):
         self.zone.yview(*args)
-        self.line_nums.yview(*args)
+        self.print_line_nums()
 
     def syntax_highlight(self):
         t0 = time.time()
@@ -1784,3 +1793,4 @@ if len(sys.argv) > 1:
     open_module(sys.argv[1])
 
 root.mainloop()
+
