@@ -1205,6 +1205,9 @@ def close_dialog(event):
     if not line_num in file_browser.doc_at_line:
         return
     doc_index = docs.index(file_browser.doc_at_line[line_num])
+    current_doc = doc_index
+    new_doc = docs[doc_index]
+    file_browser.select(new_doc)
     close_menu = Menu(root, tearoff=0, relief=FLAT, background='#ddd')
     close_menu.add_command(label=_('close'), command=_close)
     close_menu.post(event.x_root, event.y_root - 10)
@@ -1774,7 +1777,7 @@ file_browser = FileBrowser(root, font=font, height=38, padx=3, pady=3,
     foreground=fg, bg=bg)
 file_browser.tag_config('selected', foreground=bg, background=fg)
 file_browser.pack(side=LEFT, anchor=NW, expand=YES, fill=Y)
-file_browser.bind('<ButtonRelease>', switch)
+file_browser.bind('<ButtonRelease-1>', switch)
 file_browser.bind('<Button-3>', close_dialog)
 
 root.geometry('{}x{}'.format(root.winfo_screenwidth(),
@@ -1793,4 +1796,3 @@ if len(sys.argv) > 1:
     open_module(sys.argv[1])
 
 root.mainloop()
-
