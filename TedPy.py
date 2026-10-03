@@ -194,7 +194,7 @@ class Editor(Frame):
         shortcuts = Frame(frame, bg=bar_bg)
         for (src,callback) in [('⤶', self.undo), ('⤷', self.redo),
                 ('≡', self.change_wrap), ('↑', self.change_size),
-                ('↓', self.change_size)]:
+                ('↓', self.change_size), ('á', self.show_special)]:
             widget = Label(shortcuts, text=src, relief=RIDGE, bg='#FFF',
                 foreground='#000', font=sh_font)
             widget['width'] = 2
@@ -202,12 +202,6 @@ class Editor(Frame):
             widget.pack(side=LEFT, anchor=W)
 
         self.special_box = False
-        for car in 'á':
-            widget = Label(shortcuts, text=car, relief=RIDGE, bg='#FFF',
-                foreground='#000', font=sh_font)
-            widget['width'] = 2
-            widget.bind('<Button-1>', self.show_special)
-            widget.pack(side=LEFT, anchor=W)
 
         widget = Button(shortcuts, text='X', font=sh_font, relief=RIDGE)
         widget.bind('<Button-1>', _close)
@@ -853,10 +847,6 @@ class Editor(Frame):
         if event.keysym == 'Tab':
             return 'break'
         if self.control:
-            if event.keysym.lower() == 'a':
-                self.zone.tag_add(SEL, 1.0, END)
-            elif not event.keysym.lower() == 'c':
-                self.zone.tag_remove(SEL, 1.0, END)
             self.control = False
             return 'break'
         self.update_line_col()
@@ -1552,7 +1542,7 @@ def search_in_files(*args):
         Searcher().search_in_files()
 
 def set_fonts():
-    global font, sh_font
+    global font, sh_font, italic_font
 
     root_w = root.winfo_screenwidth()
     fsize = config.get("font-size", -int(root_w / 90))
@@ -1565,6 +1555,8 @@ def set_fonts():
     font = tkinter.font.Font(family=family, size=fsize)
     sh_font = tkinter.font.Font(family=family, size=int(1.5 * fsize),
         weight="bold")
+    italic_font = tkinter.font.Font(family=family, size=int(1.5 * fsize),
+        weight="bold", slant="italic")
 
 def set_sizes():
     # file browser covers 15% of width
