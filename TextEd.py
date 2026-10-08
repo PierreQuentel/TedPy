@@ -126,12 +126,6 @@ class Editor(Frame):
         hbar['command'] = zone.xview
         zone['xscrollcommand'] = hbar.set
 
-        line_nums = Text(frame, width=3, background=bg, font=font,
-            selectbackground='#fff', foreground='#808080',
-            highlightthickness=0, relief=FLAT, state=DISABLED)
-        line_nums.bind('<B1-Motion>', lambda ev: 'break')
-        line_nums.pack(side=LEFT, fill=BOTH)
-
         zone.bind('<Key>', self.key_pressed)
         zone.bind('<KeyRelease>', self.update)
         zone.bind('<MouseWheel>', self.wheel)
@@ -144,7 +138,6 @@ class Editor(Frame):
         zone.bind('<ButtonRelease-1>', self.button_release)
         zone.bind('<Control-KeyRelease-v>', self.paste)
         zone.bind('<Control-Key>', self.set_control)
-        zone.bind('<Configure>', self.configure)
         zone.bind('<Home>', self.home)
 
         for tag in ('comment', 'string', 'keyword', 'builtin', 'parenthesis',
@@ -166,7 +159,6 @@ class Editor(Frame):
         self.zone = zone
         self.scripts = []
         self.frame = frame
-        self.line_nums = line_nums
         self.shift = False
         self.control = False
         self.last_update = None
@@ -218,14 +210,6 @@ class Editor(Frame):
             close_menu.unpost()
             close_menu = None
 
-    def configure(self, event):
-        self.zone.after(500, self.print_line_nums)
-
-    def delayed_sh(self):
-        # delayed syntax highlighting, launched by a timer
-        if docs and self.do_delayed:
-            self.syntax_highlight()
-
     def get_extension(self):
         return os.path.splitext(docs[current_doc].file_name)[1]
 
@@ -260,72 +244,6 @@ class Editor(Frame):
         self.zone.mark_set(INSERT, '{}.0'.format(line_num))
         self.zone.see(INSERT)
         self.print_line_nums()
-
-    def highlight_lang(self, begin, end, lang, in_html=False):
-        txt = self.zone.get(begin, end).rstrip() + '\n'
-        ltxt = list(txt)
-        # mapping between position and line,column
-        lc = []
-        line, col = self.ix2pos(begin)
-        for car in txt:
-            lc.append((line, col))
-            col += 1
-            if car == '\n':
-                line += 1
-                col = 0
-        # remove existing tags
-        for tag in self.zone.tag_names():
-            self.zone.tag_remove(tag, begin, end)
-        # parse text to find strings, comments, keywords
-        pos = 0
-        zones[lang].sort(key=lambda x: len(x[0]), reverse=True)
-        t1 = time.time()
-        nb0 = 0
-        while pos < len(txt):
-            flag = False
-            for start, stop, ztype in zones[lang]:
-                if txt[pos:pos + len(start)] == start:
-                    spos = pos + len(start)
-                    s_end = -1
-                    nb_escape = 0
-                    while spos < len(txt):
-                        if txt[spos:spos + len(stop)] == stop and nb_escape % 2 == 0:
-                            s_end = spos
-                            spos = s_end + 1
-                            break
-                        elif txt[spos] == '\\':
-                            nb_escape += 1
-                        else:
-                            nb_escape = 0
-                        spos += 1
-                    if s_end > -1:
-                        # set zone to whitespace for next markup
-                        for i in range(pos, s_end + len(stop)):
-                            ltxt[i] = ' '
-                        # highlight zone with matching tag
-                        ix1 = '{}.{}'.format(*lc[pos])
-                        ix2 = '{}.{}'.format(*lc[min(s_end + len(stop),
-                            len(txt) - 1)])
-                        self.zone.tag_add(ztype, ix1, ix2)
-                        nb0 += 1
-                        pos = s_end + len(stop)
-                        flag = True
-                    break # if """ matched, don't try a single "
-            if not flag:
-                pos += 1
-        raw = ''.join(ltxt) # original text with empty strings and comments
-        for (pattern, tag) in patterns[lang]:
-            for mo in re.finditer(pattern, raw, re.S):
-                k1, k2 = mo.start(), mo.end()
-                self.zone.tag_add(tag,'{}.{}'.format(*lc[k1]),
-                    '{}.{}'.format(*lc[k2]))
-        # hightlight the part that exceeds 80 characters
-        for linenum in range(self.ix2pos(begin)[0], self.ix2pos(end)[0]):
-            lineend = self.ix2pos('{}.0'.format(linenum) + 'lineend')[1]
-            if lineend > 78:
-                self.zone.tag_add('too_long', '{}.{}'.format(linenum, 78),
-                    '{}.{}'.format(linenum, lineend))
-        self.last_update = time.time()
 
     def home(self,event):
         """Home key : go to start of line, after the indentation"""
@@ -471,38 +389,6 @@ class Editor(Frame):
         self.syntax_highlight()
         self.print_line_nums()
         return 'break'
-
-    def print_line_nums(self, *args):
-        start, end = self.get_visible_text()
-        line_nums = []
-        bbox = None
-        for first_visible in range(start, end + 1):
-            bbox = self.zone.bbox(f'{first_visible}.0linestart')
-            if bbox is not None:
-                break
-            else:
-                bbox_end = self.zone.bbox(f'{first_visible}.0lineend')
-                if bbox_end is not None:
-                    nb_visible_lines = round(0.5 +
-                        bbox_end[1] / bbox_end[3])
-                    line_nums += [' '] * nb_visible_lines
-        y_offset = bbox[1] if bbox is not None else 0
-        nb_lines = int(self.zone.index('{}-1c'.format(END)).split('.')[0])
-        nb_chars = len(str(nb_lines))
-        for i in range(first_visible, end + 1):
-            line_nums.append(str(i).rjust(nb_chars))
-            nb_physical_lines = self.zone.count(f'{i}.0', f'{i + 1}.0',
-                'displaylines')
-            if nb_physical_lines and nb_physical_lines[0] > 1:
-                line_nums += [' '] * (nb_physical_lines[0] - 1)
-        if y_offset < 0:
-            line_nums.append(' ' * nb_chars)
-        self.line_nums.config(state=NORMAL)
-        self.line_nums['width'] = 2 + len(str(nb_lines + 1))
-        self.line_nums.delete(1.0, END)
-        self.line_nums.insert(1.0, '\n'.join(line_nums))
-        self.line_nums.yview('scroll', -y_offset, 'pixels')
-        self.line_nums.config(state=DISABLED)
 
     def redo(self,*args):
         try:
