@@ -23,7 +23,7 @@ _ = translation.translate
 this_dir = os.path.dirname(__file__)
 
 # Load config
-config_file = os.path.join(this_dir, 'config.json')
+config_file = os.path.join(this_dir, 'texted_config.json')
 with open(config_file, encoding='utf-8') as f:
     config = json.load(f)
 
@@ -38,12 +38,14 @@ with open(os.path.join(this_dir, 'themes', theme + '.json'),
 
 # parameters
 wheel_coeff = 2 # increase wheel scrolling
+spaces_per_tab = 4
 
 root = Tk() # needed here for font definitions
-root.title("TexEd")
+root.title("TextEd")
 
 # global variables
 current_doc = None
+doc = None
 wheel_delta = None
 docs = []
 
@@ -75,7 +77,7 @@ class Editor(Frame):
         shortcuts = Frame(frame, bg=bar_bg)
         for (src,callback) in [('⤶', self.undo), ('⤷', self.redo),
                 ('≡', self.change_wrap), ('↑', self.change_size),
-                ('↓', self.change_size), ('á', self.show_special)]:
+                ('↓', self.change_size)]:
             widget = Label(shortcuts, text=src, relief=RIDGE, bg='#FFF',
                 foreground='#000', font=sh_font)
             widget['width'] = 2
@@ -93,22 +95,6 @@ class Editor(Frame):
         self.label_column.pack(side=RIGHT)
         Label(shortcuts, text=' | ', bg=bar_bg, fg=fg).pack(side=RIGHT)
         self.label_line.pack(side=RIGHT)
-        self.encoding = StringVar()
-        enc_label = Label(shortcuts, textvariable=self.encoding,
-            relief=RAISED, font=font)
-        enc_label.bind('<Button-1>', self.set_encoding)
-        enc_label.pack(side=RIGHT)
-        Label(shortcuts, text=_('encoding'), bg=bar_bg,
-            fg=fg).pack(side=RIGHT)
-
-        self.spaces_per_tab = IntVar()
-        self.spaces_per_tab.set(4)
-        spaces_per_tab_label = Label(shortcuts,
-            textvariable=self.spaces_per_tab, relief=RAISED, font=font)
-        spaces_per_tab_label.bind('<Button-1>', self.set_spaces_per_tab)
-        spaces_per_tab_label.pack(side=RIGHT)
-        Label(shortcuts, text=_('spaces_per_tab'), bg=bar_bg,
-            fg=fg).pack(side=RIGHT)
 
         shortcuts.pack(fill=BOTH)
 
@@ -140,19 +126,11 @@ class Editor(Frame):
         zone.bind('<Control-Key>', self.set_control)
         zone.bind('<Home>', self.home)
 
-        for tag in ('comment', 'string', 'keyword', 'builtin', 'parenthesis',
-                'curly_brace', 'square_bracket', 'too_long'):
-            zone.tag_config(tag, foreground=colors[tag])
-
-        zone.tag_config('script_in_html', borderwidth=2, relief=GROOVE,
-            lmargin1=15)
         zone.tag_config('found', foreground=bg, background=fg)
         zone.tag_config('selection', background=zone['selectbackground'],
             borderwidth=0)
-        zone.tag_config('lone_brace', underline=1)
-        for tag_name in ['matching_brace', 'word']:
-            zone.tag_config(tag_name, background=backgrounds[tag_name],
-                foreground=colors[tag_name], borderwidth=0, relief=FLAT)
+        zone.tag_config('italic', foreground=fg, background=bg,
+            font=italic_font)
 
         zone.pack(expand=YES, fill=BOTH)
 
@@ -200,7 +178,6 @@ class Editor(Frame):
             self.zone.config(wrap=WORD)
         else:
             self.zone.config(wrap=NONE)
-        self.print_line_nums()
 
     def click(self,event):
         global close_menu
@@ -243,7 +220,6 @@ class Editor(Frame):
         self.zone.focus()
         self.zone.mark_set(INSERT, '{}.0'.format(line_num))
         self.zone.see(INSERT)
-        self.print_line_nums()
 
     def home(self,event):
         """Home key : go to start of line, after the indentation"""
@@ -289,9 +265,8 @@ class Editor(Frame):
         if lang in langs:
             lineend = getattr(langs[lang], "autoindent_lineend", None)
             if lineend is not None and txt.strip().endswith(lineend):
-                self.zone.insert(INSERT, self.spaces_per_tab.get() * ' ')
+                self.zone.insert(INSERT, spaces_per_tab * ' ')
 
-        self.print_line_nums()
         return 'break'
 
     def insert_special(self, event):
@@ -305,14 +280,14 @@ class Editor(Frame):
         """Replace tabs by a number of spaces"""
         sel = self.zone.tag_ranges(SEL)
         if not sel:
-            self.zone.insert(INSERT, ' ' * self.spaces_per_tab.get())
+            self.zone.insert(INSERT, ' ' * spaces_per_tab)
         else:
             first_line,last_line = [int(self.zone.index(x).split('.')[0])
                 for x in sel]
             if self.zone.index(sel[1]).endswith('.0'):
                 last_line -= 1
             for line in range(first_line, last_line + 1):
-                self.zone.insert(float(line), ' ' * self.spaces_per_tab.get())
+                self.zone.insert(float(line), ' ' * spaces_per_tab)
         return 'break'
 
     def ix2pos(self, ix):
@@ -386,8 +361,6 @@ class Editor(Frame):
                         return
 
     def paste(self, event):
-        self.syntax_highlight()
-        self.print_line_nums()
         return 'break'
 
     def redo(self,*args):
@@ -408,7 +381,7 @@ class Editor(Frame):
         """
         sel = self.zone.tag_ranges(SEL)
         if not sel:
-            nb = self.spaces_per_tab.get()
+            nb = spaces_per_tab
             while nb and self.zone.get(INSERT) == ' ':
                 self.zone.delete(INSERT)
                 nb -= 1
@@ -418,7 +391,7 @@ class Editor(Frame):
             if self.zone.index(sel[1]).endswith('.0'):
                 last_line -= 1
             for line in range(first_line, last_line + 1):
-                nb = self.spaces_per_tab.get()
+                nb = spaces_per_tab
                 while nb and self.zone.get(float(line)) == ' ':
                     self.zone.delete(float(line))
                     nb -= 1
@@ -438,20 +411,6 @@ class Editor(Frame):
     def set_control(self,event):
         self.control = True
 
-    def set_encoding(self,event):
-        self.prev_enc = self.encoding.get()
-        menu = Menu(self.zone, tearoff=False)
-        for encoding in encodings:
-            menu.add_radiobutton(label=encoding, variable=self.encoding,
-                command=self.change_encoding)
-        menu.post(event.x_root, event.y_root)
-
-    def set_spaces_per_tab(self, event):
-        menu = Menu(self.zone, tearoff=False)
-        for value in [2, 4]:
-            menu.add_radiobutton(label=value, variable=self.spaces_per_tab)
-        menu.post(event.x_root, event.y_root)
-
     def show_special(self, event):
         if self.special_box:
             self.special_box.destroy()
@@ -468,7 +427,6 @@ class Editor(Frame):
 
     def slide(self, *args):
         self.zone.yview(*args)
-        self.print_line_nums()
 
     def text_width(self):
         pix_per_char = font.measure('0') # pixels per char in this font
@@ -593,7 +551,6 @@ class Searcher:
                 '{}+{}c'.format(pos,found_length.get()))
             self.search_pos = '{}+{}c'.format(pos, found_length.get())
             self.zone().see(pos)
-            self.editor().print_line_nums()
         else:
             tkinter.messagebox.showinfo(title=_('search'),
                 message=_('Not found'))
@@ -613,7 +570,6 @@ class Searcher:
         ed.zone.focus()
         ed.zone.mark_set(INSERT, '{}.0'.format(line + 1))
         ed.zone.see(INSERT)
-        ed.print_line_nums()
 
     def make_search_files(self):
         txt = self.searched.get()
@@ -786,30 +742,17 @@ def check_file_change():
     root.after(1000, check_file_change)
 
 def _close(*args):
-    global current_doc
-    if not docs:
+    global doc
+    if doc is None:
         return
-    if (docs[current_doc].editor.zone.get(1.0, '{}-1c'.format(END)) !=
-            docs[current_doc].text):
+    if (doc.editor.zone.get(1.0, '{}-1c'.format(END)) !=
+            doc.text):
         flag = tkinter.messagebox.askquestion("File modified",
-            "File {} changed. Save it ?".format(docs[current_doc].file_name))
+            "File {} changed. Save it ?".format(doc.file_name))
         if flag != 'no' and not save():
             return
-    docs[current_doc].editor.frame.pack_forget()
-    del docs[current_doc]
-    file_browser.update()
-    if docs:
-        current_doc = len(docs) - 1
-        docs[current_doc].editor.frame.pack()
-        root.title('TedPy - {}'.format(docs[current_doc].file_name))
-        file_browser.select(docs[-1])
-        docs[current_doc].editor.zone.focus()
-    else:
-        current_doc = None
-        if hasattr(root, "search"):
-            root.search.destroy()
-            delattr(root, "search")
-        root.title('TedPy')
+    doc.editor.frame.pack_forget()
+    root.title('TextEd')
 
 close_menu = None
 
@@ -835,13 +778,7 @@ def close_window(*args):
     root.destroy()
 
 def default_dir():
-    if docs and docs[current_doc].has_name:
-        return os.path.dirname(docs[current_doc].file_name)
-    try:
-        with open(h_path, encoding="utf-8") as f:
-            return os.path.dirname(f.readlines()[-1])
-    except IOError:
-        return os.getcwd()
+    return os.getcwd()
 
 def guess_linefeed(txt):
     # guess if linefeed in text is \n, \r\n or \r
@@ -881,21 +818,21 @@ def make_patterns(*args):
 def new_module():
     ext = 'bzh'
     global doc
+    if doc is not None:
+        _close()
     for widget in panel.winfo_children():
         widget.pack_forget()
     editor = Editor()
     editor.frame.pack(expand=YES, fill=BOTH)
     doc = Document(None, ext)
     doc.editor = editor
-    doc.editor.encoding.set('utf-8')
     editor.zone.focus()
     root.title('TedPy - {}'.format(doc.file_name))
 
 def open_module(file_name, force_reload=False, force_encoding=None):
-    global current_doc
-    if docs and hasattr(docs[current_doc].editor, "browser"):
-        docs[current_doc].editor.browser.destroy()
-        del docs[current_doc].editor.browser
+    global doc
+    if doc is not None:
+        _close()
     file_name = os.path.normpath(file_name)
     file_encoding = None
     if not os.path.exists(file_name):
@@ -904,84 +841,38 @@ def open_module(file_name, force_reload=False, force_encoding=None):
                 message=_('File not found'))
         return
     extension = os.path.splitext(file_name)[1]
-    if extension == '.py':
-        # search a line with encoding (see PEP 0263)
-        src = open(file_name)
-        try:
-            head = src.readline() + src.readline()
-            file_encoding = py_encoding(head)
-        except UnicodeDecodeError:
-            pass
-    elif extension in ['.html','.htm']:
-        # search a meta tag with charset
-        if force_encoding is None:
-            with open(file_name, newline="", errors='ignore') as fobj:
-                file_encoding = html_encoding(fobj.read())
-            if not file_encoding:
-                tkinter.messagebox.showwarning(title=_('HTML encoding'),
-                        message=_('Charset not found'))
-    if not file_encoding:
-        file_encoding = encoding_for_next_open.get()
-    try:
-        txt = open(file_name, 'r', encoding=file_encoding).read()
-        txt = txt.replace('\t', ' ' * spaces_per_tab.get())
-        linefeed.set(guess_linefeed(txt))
-        # internally use \n, otherwise tkinter adds an extra whitespace
-        # for each line
-        txt = txt.replace('\r\n', '\n')
-    except (LookupError, UnicodeDecodeError): # try another encoding
-        new_enc = EncodingChooser(_('Encoding error'),
-            _('encoding_err_msg').format(encoding_for_next_open.get()),
-            initialvalue=encoding_for_next_open)
-        if new_enc.result is not None:
-            encoding_for_next_open.set(new_enc.result)
-            return open_module(file_name, force_encoding=new_enc.result)
+    if extension != '.bzh':
+        tkinter.messagebox.showinfo(title=_('opening file'),
+                message=_('Wrong extension'))
         return
-    if (len(docs) == 1 and not docs[0].has_name
-            and not docs[0].editor.zone.get(1.0, END).strip()):
-        docs[0].editor.frame.pack_forget()
-        del docs[0]
-        file_browser.update()
-        current_doc = None
-    for i, doc in enumerate(docs):
-        if file_name == doc.file_name:
-            if not force_reload:
-                switch_to(i)
-                file_browser.select_clear(0, END)
-                file_browser.select(doc)
-                return
-            else:
-                file_browser.delete(doc)
+    file_encoding = 'utf-8'
+    with open(file_name, 'r', encoding=file_encoding) as f:
+        data = json.load(f)
+    txt = data['text']
+    txt = txt.replace('\t', ' ' * spaces_per_tab)
+    # internally use \n, otherwise tkinter adds an extra whitespace
+    # for each line
+    txt = txt.replace('\r\n', '\n')
+
     editor = Editor()
-    if extension in (".html", ".htm"):
-        editor.spaces_per_tab.set(2)
     editor.zone.insert(1.0, txt)
     text = editor.zone.get(1.0, '{}-1c'.format(END))
-    if docs:
-        docs[current_doc].editor.frame.pack_forget()
-    root.title('TedPy - {}'.format(file_name))
-    new_doc = Document(file_name, text=text)
-    new_doc.editor = editor
-    new_doc.editor.encoding.set(file_encoding)
-    new_doc.last_modif = os.stat(file_name).st_mtime
-    docs.append(new_doc)
-    file_browser.update()
-    current_doc = docs.index(new_doc)
-    file_browser.select(new_doc)
+    root.title('TextEd - {}'.format(file_name))
+    doc = Document(file_name, text=text)
+    doc.editor = editor
+    doc.last_modif = os.stat(file_name).st_mtime
+    for tag_name in data['tags']:
+        marks = data['tags'][tag_name]
+        for i in range(0, len(marks), 2):
+            x1, x2 = marks[i]
+            y1, y2 = marks[i + 1]
+            editor.zone.tag_add(tag_name, f'{x1}.{x2}', f'{y1}.{y2}')
+
     editor.zone.mark_set(INSERT, 1.0)
     editor.update_line_col()
-    editor.syntax_highlight()
     editor.zone.edit_reset()
     editor.frame.pack(expand=YES, fill=BOTH)
-    # wait to print lines, otherwise bbox only works for first line
-    editor.zone.after(100, editor.print_line_nums)
-    save_history(new_doc)
-    new_doc.editor.zone.focus()
-
-def py_encoding(head):
-    mo = re.search(r'(?s)coding\s*[:=]\s*([-\w.]+)', head, re.M)
-    if mo:
-        return mo.groups()[0]
+    doc.editor.zone.focus()
 
 def replace(*args):
     if docs:
@@ -1055,75 +946,28 @@ def run(*args):
             shell=True)
 
 def save(*args):
-    if not docs:
+    if doc is None:
         return
-    if docs[current_doc].file_name:
+    if doc.file_name:
         return save_zone()
     else:
         return save_as()
 
 def save_as():
-    if not docs:
+    if doc is None:
         return
     file_name = asksaveasfilename(
         initialfile=os.path.basename(docs[current_doc].file_name),
         initialdir=default_dir())
     if file_name:
-        doc = docs[current_doc]
         doc.file_name = os.path.normpath(file_name)
-        root.title('TedPy - {}'.format(file_name))
-        file_browser.delete(doc)
-        file_browser.update()
-        file_browser.select(doc)
+        root.title('TextEd - {}'.format(file_name))
         res = save_zone()
-        doc.editor.syntax_highlight()
         return res
 
-def save_history(doc):
-    file_name = doc.file_name
-    try:
-        with open(h_path, encoding="utf-8") as f:
-            history = [os.path.normpath(line.strip())
-                for line in f
-                if line.strip() and not line.strip() == file_name] + [file_name]
-    except IOError:
-        out = open(h_path, 'w', encoding="utf-8")
-        out.write(file_name + '\n')
-        out.close()
-        menuModule.add_separator()
-        menuModule.add_command(label=file_name,
-            command=lambda file_name=file_name:open_module(file_name))
-        return
-    with open(h_path, 'w', encoding="utf-8") as out:
-        for line in history[-history_size:]:
-            out.write(os.path.normpath(line) + '\n')
-    # remove entry in menu
-    index = menuModule.index(END)
-    deleted = False
-    while index > 0:
-        if menuModule.type(index) != 'command':
-            break
-        else:
-            label = menuModule.entrycget(index, 'label')
-            if label == file_name:
-                menuModule.delete(index)
-                deleted = True
-                break
-            else:
-                index -= 1
-    if not deleted:
-        if menuModule.index(END) > nb_menu_items + history_size:
-            menuModule.delete(nb_menu_items + 2) # oldest file in history
-    # add to menu
-    menuModule.add_command(label=file_name,
-        command=lambda file_name=file_name: open_module(file_name))
-    # save last modif time
-    doc.last_modif = os.stat(file_name).st_mtime
-
 def save_zone():
-    doc = docs[current_doc]
     zone = doc.editor.zone
-    enc = doc.editor.encoding.get()
+    enc = 'utf-8'
     try:
         data = zone.get(1.0, '{}-1c'.format(END)).encode(enc)
     except UnicodeEncodeError as msg:
@@ -1145,8 +989,6 @@ def save_zone():
     with open(doc.file_name, 'wb') as out:
         out.write(data)
     doc.text = zone.get(1.0, '{}-1c'.format(END))
-    save_history(doc)
-    file_browser.mark_if_changed()
     return True
 
 def search(*args):
@@ -1169,9 +1011,11 @@ def set_fonts():
     else:
         family = "Courier New"
     font = tkinter.font.Font(family=family, size=fsize)
+    italic_font = tkinter.font.Font(family=family, size=fsize,
+        slant="italic")
     sh_font = tkinter.font.Font(family=family, size=int(1.5 * fsize),
         weight="bold")
-    italic_font = tkinter.font.Font(family=family, size=int(1.5 * fsize),
+    bold_italic_font = tkinter.font.Font(family=family, size=int(1.5 * fsize),
         weight="bold", slant="italic")
 
 def set_sizes():
@@ -1193,18 +1037,6 @@ def set_linefeed(txt):
     else:
         return txt.replace(b'\n', b'\r\n')
 
-def switch(event):
-    if not docs:
-        return
-    line_num = int(event.widget.index(CURRENT).split('.')[0]) - 1
-    if not line_num in file_browser.doc_at_line:
-        return
-    new_index = docs.index(file_browser.doc_at_line[line_num])
-    if new_index == current_doc:
-        return
-    else:
-        docs[current_doc].editor.remove_functions_browser()
-        switch_to(new_index)
 
 def switch_to(new_index):
     global current_doc
@@ -1243,23 +1075,6 @@ menuModule.add_command(label=_('save'), accelerator='Ctrl+S', command=save)
 menuModule.add_command(label=_('close'), command=close_window)
 menuModule.add_command(label=_('run'), accelerator="Ctrl+R", command=run)
 nb_menu_items = menuModule.index(END)
-
-# history of open files
-h_path = os.path.join(this_dir, "history.txt")
-try:
-    history = []
-    with open(h_path, encoding="utf-8") as f:
-        for line in f:
-            path = os.path.normpath(line.strip())
-            if not path in history:
-                history.append(path)
-
-    if history:
-        menuModule.add_separator()
-        for f in history:
-            menuModule.add_command(label=f, command=lambda f=f: open_module(f))
-except IOError:
-    pass
 
 menubar.add_cascade(menu=menuModule, label=_('file'))
 
