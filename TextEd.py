@@ -776,29 +776,6 @@ def close_window(*args):
 def default_dir():
     return os.getcwd()
 
-def guess_linefeed(txt):
-    # guess if linefeed in text is \n, \r\n or \r
-    counts = txt.count('\n'), txt.count('\r\n'), txt.count('\r')
-    if counts[0] > counts[1]:
-        return 'Unix: \\n'
-    elif counts[2] > counts[1]:
-        return 'Mac: \\r'
-    return 'DOS: \\r\\n'
-
-def html_encoding(html):
-    # form <meta charset="...">
-    mo = re.search(r'<meta\s+charset="(.*?)"\s*/?>', html, re.I)
-    if mo:
-        return mo.groups(0)[0]
-    # form <meta http-equiv="content-type" type="...;charset=...">
-    pattern = r'<meta\s+http-equiv\s*=\s*"content-type"\s+content\s*=\s*(.+?)".*/?>'
-    mo = re.search(pattern, html, re.I)
-    if mo:
-        content = mo.groups()[0]
-        mo = re.search(r'charset\s*=\s*(.+)', content, re.I + re.S)
-        if mo:
-            return mo.groups()[0]
-
 def make_patterns(*args):
     importlib.reload(langs["python"])
     kw_pattern = '|'.join([r'\b{}\b'.format(kw)
@@ -874,73 +851,6 @@ def replace(*args):
     if docs:
         Searcher().replace()
 
-def run(*args):
-    if not docs or not docs[current_doc].editor.zone.get(1.0, END).strip():
-        return
-    if docs[current_doc].file_name is None:
-        save_as()
-    file_ext = os.path.splitext(docs[current_doc].file_name)[1]
-    editor = docs[current_doc].editor
-    lang, begin, end = editor.get_infos(INSERT)
-    if lang != "python":
-        tkinter.messagebox.showerror(title='Execution error',
-            message=_('not_python'))
-        return
-    save() # in case text or encoding changed
-    # check if first line indicates interpreter
-    linestart = editor.zone.index(begin + "linestart")
-    lineend = editor.zone.index(begin + "lineend")
-    first_line = docs[current_doc].editor.zone.get(linestart, lineend)
-    if first_line.startswith('#!'):
-        interp = first_line[2:]
-    else:
-        interp = dict(python_versions)[python_version.get()]
-    if interp.lower().endswith('w.exe'):
-        # On Windows, use python.exe, not pythonw.exe
-        interp = interp[:-5] + interp[-4:]
-    if ' ' in interp:
-        interp = '"{}"'.format(interp)
-    this_dir = os.path.dirname(__file__)
-    script_dir = os.path.dirname(docs[current_doc].file_name)
-    save_sys_path = sys.path[:]
-    if file_ext == ".py":
-        fname = docs[current_doc].file_name
-    else:
-        temp_name = 'temp_TedPy.py'
-        fname = os.path.join(script_dir, temp_name)
-        with open(fname, "w", encoding="utf-8") as out:
-            out.write(editor.zone.get(begin, end))
-    if sys.platform == 'win32':
-        # use START in file directory
-        with open(os.path.join(this_dir, "run.bat"), "w",
-                encoding="utf-8") as out:
-            out.write(f"@echo off\n%1%\ncd %2%\n{interp} %3%\npause")
-            if file_ext != '.py':
-                out.write('\ndel %3%')
-            out.write('\nexit')
-        save_dir = os.getcwd()
-        drive = os.path.splitdrive(script_dir)[0]
-        os.chdir(drive)
-        dname = script_dir.replace('/', '\\')
-        os.chdir(script_dir)
-        cmd = r'start {} {} "{}" "{}"'.format(os.path.join(this_dir, "run.bat"),
-            drive, dname, fname)
-        try:
-            os.system(cmd)
-            os.chdir(save_dir)
-            sys.path = save_sys_path
-        except Exception as exc:
-            print('exception', exc)
-            import traceback
-            traceback.print_exc(file=sys.stderr)
-
-    else:   # works on Raspbian
-        with open('run.sh', 'w', encoding='utf-8') as out:
-            out.write('#!/bin/bash\ncd {}\n{} {}\n'.format(
-                os.path.dirname(fname), interp, os.path.basename(fname)))
-        subprocess.Popen('/usr/bin/x-terminal-emulator -e "/bin/bash run.sh"',
-            shell=True)
-
 def save(*args):
     if doc is None:
         return
@@ -963,26 +873,17 @@ def save_as():
 
 def save_zone():
     zone = doc.editor.zone
-    enc = 'utf-8'
-    try:
-        data = zone.get(1.0, '{}-1c'.format(END)).encode(enc)
-    except UnicodeEncodeError as msg:
-        message = _('cannot_encode').format(enc)
-        start = msg.start
-        text = zone.get(1.0,'{}-1c'.format(END))
-        line = 1 + text[:start].count('\n')
-        if line==1:
-            col = start
-        else:
-            col = len(text[text.rfind('\n', 0, start):start])
-        message += '\nInvalid character line {}, column {}'.format(line, col)
-        message += '\nafter '+text[start - 10:start]
-        tkinter.messagebox.showerror('Encoding error',
-            message=message)
-        return False
+    text = zone.get(1.0, '{}-1c'.format(END))
+    data = {'text': text, 'tags': {}}
+    for tag in zone.tag_names():
+        if tag in ['sel', 'selection']:
+            continue
+        ranges = list(map(doc.editor.ix2pos, zone.tag_ranges(tag)))
+        data['tags'][tag] = ranges
 
-    with open(doc.file_name, 'wb') as out:
-        out.write(data)
+    with open(doc.file_name, 'w') as out:
+        json.dump(data, out)
+
     doc.text = zone.get(1.0, '{}-1c'.format(END))
     return True
 
@@ -995,8 +896,6 @@ def search_in_files(*args):
         Searcher().search_in_files()
 
 def set_fonts():
-    global font, sh_font, italic_font
-
     root_w = root.winfo_screenwidth()
     fsize = config.get("font-size", -int(root_w / 90))
 
@@ -1061,7 +960,6 @@ menuModule.add_command(label=_('open'), accelerator='Ctrl+O',
 menuModule.add_command(label=_('save as') + '...', command=save_as)
 menuModule.add_command(label=_('save'), accelerator='Ctrl+S', command=save)
 menuModule.add_command(label=_('close'), command=close_window)
-menuModule.add_command(label=_('run'), accelerator="Ctrl+R", command=run)
 nb_menu_items = menuModule.index(END)
 
 menubar.add_cascade(menu=menuModule, label=_('file'))
@@ -1078,7 +976,6 @@ root.config(menu=menubar)
 root.bind('<Control-n>', new_module)
 root.bind('<Control-o>', ask_module)
 root.bind('<Control-s>', save)
-root.bind('<Control-r>', run)
 root.bind('<F5>', search)
 root.bind('<F6>', search_in_files)
 root.bind('<F8>', replace)
