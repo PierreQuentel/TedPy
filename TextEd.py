@@ -266,13 +266,13 @@ class Searcher:
         if found:
             self.search_pos = found[1]
 
-    def search(self, repl=False, files=False):
+    def search(self, repl=False):
         selected = self.zone().tag_ranges(SEL)
         if selected: # tag selection (otherwise select background is lost)
             self.zone().tag_add('selection', *selected)
         self.top = Toplevel(root)
         root.search = self.top
-        self.top.title(_('search' if not files else 'search in files'))
+        self.top.title(_('search'))
         self.top.transient(root)
         self.top.protocol('WM_DELETE_WINDOW', self.end_search)
         self.searched = Entry(self.top, relief=GROOVE, borderwidth=4)
@@ -287,25 +287,12 @@ class Searcher:
             variable=full_word).pack(anchor=W)
         Checkbutton(f_buttons, text=_('case insensitive'),
             variable=case_insensitive).pack(anchor=W)
-        if not files:
-            Checkbutton(f_buttons, text=_('regular expression'),
-                variable=regular_expression).pack(anchor=W)
         f_buttons.pack(side=LEFT)
-        if files:
-            ext = Frame(f_buttons)
-            Label(ext, text=_('extensions')).pack(anchor=W)
-            self.extensions = Entry(ext)
-            self.extensions.insert(INSERT, docs[current_doc].ext)
-            self.extensions.pack()
-            ext.pack(side=BOTTOM, pady=5)
         if repl:
             Button(self.top, text=_('replace next'),
                 command=self.make_replace).pack()
             Button(self.top, text=_('replace all'),
                 command=self.make_replace_all).pack()
-        elif files:
-            Button(self.top, text=_('search'),
-                command=self.make_search_files).pack()
         else:
             Button(self.top, text=_('search'),
                 command=self.make_search).pack()
@@ -329,107 +316,19 @@ class Searcher:
             tkinter.messagebox.showinfo(title=_('search'),
                 message=_('Not found'))
 
-    def open_file(self, event):
-        zone = event.widget
-        file_name, line = zone.links[zone.tag_prevrange('link', CURRENT)]
-        for ix, doc in enumerate(docs):
-            if doc.file_name == file_name:
-                switch_to(ix)
-                break
-        else:
-            # not found, open file
-            open_module(file_name)
-        ed = docs[current_doc].editor
-        ed.zone.focus()
-        ed.zone.mark_set(INSERT, '{}.0'.format(line + 1))
-        ed.zone.see(INSERT)
-
-    def make_search_files(self):
-        txt = self.searched.get()
-        pattern = txt
-        if full_word.get():
-            for car in '[](){}$^.':
-                pattern = pattern.replace(car, '\\'+car)
-            pattern = r'(^|[^\w\d_$]){}($|[^\w\d_$])'.format(pattern)
-        flags = 0
-        if case_insensitive.get():
-            flags = re.I
-        extensions = [x.strip() for x in self.extensions.get().split()]
-        extensions = [x if x.startswith('.') else '.' + x for x in extensions]
-        top = Toplevel()
-        zone = ScrolledText(top, width=120, height=40)
-        zone.links = {}
-        zone.pack()
-        zone.tag_config('link', foreground="blue", underline=1)
-        zone.tag_bind('link', '<Button-1>', self.open_file)
-        zone.tag_bind('link', "<Enter>", lambda *args: zone.config(cursor="hand1"))
-        zone.tag_bind('link', "<Leave>", lambda *args: zone.config(cursor=""))
-        top.title(_('search_in_files').format(default_dir()))
-        zone.insert(END, _('string').format(txt))
-        for dirpath, dirnames, filenames in os.walk(default_dir()):
-            flag_dir = False
-            if '.hg' in dirnames:
-                dirnames.remove('.hg')
-            for fname in filenames:
-                if extensions and os.path.splitext(fname)[1] not in extensions:
-                    continue
-                if fname.endswith(('.gz', '.zip')):
-                    continue
-                flag_file = False
-                full_path = os.path.join(dirpath, fname)
-                src = open(full_path, encoding='iso-8859-1').read()
-                rest = src
-                lines = src.split('\n')
-                pos = 0
-                save_lnum = None
-                while True:
-                    try:
-                        mo = re.search(pattern, rest, flags=flags)
-                    except:
-                        print('error with pattern', pattern)
-                        raise
-                    if mo:
-                        if not flag_dir:
-                            zone.insert(END,'\n\n' + dirpath)
-                            flag_dir = True
-                        if not flag_file:
-                            zone.insert(END, '\n   {}\n'.format(
-                                full_path[len(default_dir()) + 1:]))
-                            flag_file = True
-                        pos_in_src = pos + mo.start()
-                        while src[pos_in_src] == '\n':
-                            pos_in_src += 1
-                        lnum = src[:pos_in_src].count('\n')
-                        if lnum != save_lnum:
-                            zone.insert(END, '\n        ')
-                            zone.insert(END, 'line %4s' %(lnum+1), "link")
-                            zone.links[zone.tag_prevrange('link', CURRENT)] = (
-                                full_path, lnum)
-                            zone.insert(END, ' : %s'
-                                %(lines[lnum][:100]))
-                            save_lnum = lnum
-                        pos += mo.start() + len(txt)
-                        rest = rest[mo.start() + len(txt):]
-                    else:
-                        if flag_file:
-                            zone.insert(END, '\n')
-                        break
-
     def find_next(self, **kw):
         pattern = self.searched.get()
-        regexp = regular_expression.get()
         if self.search_end:
             kw['stopindex'] = self.search_end
         if full_word.get():
             for car in '[](){}$^.':
                 pattern = pattern.replace(car, '\\'+car)
-            pattern = r'(^|[^\w\d_$]){}($|[^\w\d_$])'.format(pattern)
-            regexp = True
+            pattern = r'\m{}\M'.format(pattern)
         if case_insensitive.get():
             pattern = '(?i)' + pattern
-            regexp = True
+        print('pattern', pattern)
         res = self.zone().search(pattern, self.search_pos,
-            count=found_length, regexp=regexp, **kw)
+            count=found_length, regexp=True, **kw)
         ln = found_length.get()
         if res and full_word.get(): # remove borders
             line, col = [int(x) for x in res.split('.')]
@@ -444,9 +343,6 @@ class Searcher:
 
     def replace(self):
         self.search(repl=True)
-
-    def search_in_files(self):
-        self.search(files=True)
 
     def make_replace(self):
         self.set_search_boundaries()
@@ -669,10 +565,6 @@ def search(*args):
     if doc is not None:
         Searcher().search()
 
-def search_in_files(*args):
-    if docs:
-        Searcher().search_in_files()
-
 def set_fonts():
     root_w = root.winfo_screenwidth()
     fsize = config.get("font-size", -int(root_w / 90))
@@ -718,8 +610,6 @@ full_word = BooleanVar(root)
 full_word.set(True)
 case_insensitive = BooleanVar(root)
 case_insensitive.set(True)
-regular_expression = BooleanVar(root)
-regular_expression.set(False)
 found_length = IntVar(root)
 
 menubar=Menu(root)
@@ -738,8 +628,6 @@ menubar.add_cascade(menu=menuModule, label=_('file'))
 
 menuEdition=Menu(menubar, tearoff=0)
 menuEdition.add_command(label=_('search'), command=search, accelerator="F5")
-menuEdition.add_command(label=_('search in files'), command=search_in_files,
-    accelerator="F6")
 menuEdition.add_command(label=_('replace'), command=replace, accelerator="F8")
 menubar.add_cascade(menu=menuEdition, label=_('edit'))
 
@@ -749,7 +637,6 @@ root.bind('<Control-n>', new_module)
 root.bind('<Control-o>', ask_module)
 root.bind('<Control-s>', save)
 root.bind('<F5>', search)
-root.bind('<F6>', search_in_files)
 root.bind('<F8>', replace)
 root.protocol('WM_DELETE_WINDOW', close_window)
 
