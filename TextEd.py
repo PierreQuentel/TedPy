@@ -122,8 +122,7 @@ class Editor(Frame):
         zone.bind('<KeyRelease>', self.update)
         zone.bind('<Button-1>', self.click)
         zone.bind('<ButtonRelease-1>', self.button_release)
-        zone.bind('<Control-KeyRelease-v>', self.paste)
-        zone.bind('<Control-Key>', self.set_control)
+        zone.bind('<Control-i>', self.italic)
 
         zone.tag_config('found', foreground=bg, background=fg)
         zone.tag_config('selection', background=zone['selectbackground'],
@@ -138,7 +137,6 @@ class Editor(Frame):
         self.zone = zone
         self.frame = frame
         self.shift = False
-        self.control = False
 
     def button_release(self, event):
         self.zone['cursor'] = 'xterm'
@@ -151,15 +149,6 @@ class Editor(Frame):
         if close_menu is not None:
             close_menu.unpost()
             close_menu = None
-
-    def get_extension(self):
-        return os.path.splitext(docs[current_doc].file_name)[1]
-
-    def get_infos(self, pos):
-        ext = self.get_extension()
-        pos = self.zone.index(pos)
-        lang = ext2lang.get(ext)
-        return lang, "1.0", END
 
     def insert_special(self, event):
         if self.zone.tag_ranges(SEL):
@@ -176,46 +165,16 @@ class Editor(Frame):
                 self.zone.tag_add('italic', *sel)
             else:
                 self.zone.tag_remove('italic', *sel)
-
+        return 'break'
+        
     def ix2pos(self, ix):
         return [int(x) for x in self.zone.index(ix).split('.')]
-
-    def paste(self, event):
-        return 'break'
 
     def redo(self,*args):
         try:
             self.zone.edit_redo()
         except:
             pass
-
-    def remove_trailing_whitespace(self):
-        """Removes trailing whitespaces."""
-        last_line = self.ix2pos(END)[0]
-        for i in range(1, last_line + 1):
-            line = self.zone.get('{}.0linestart'.format(i),
-                '{}.0lineend'.format(i))
-            rstripped = line.rstrip()
-            if rstripped != line:
-                self.zone.delete('{}.{}'.format(i, len(rstripped)),
-                    '{}.0lineend'.format(i))
-
-    def set_control(self,event):
-        self.control = True
-
-    def show_special(self, event):
-        if self.special_box:
-            self.special_box.destroy()
-            self.special_box = False
-        else:
-            self.special_box = Toplevel()
-            for car in 'áíóú':
-                w = Label(self.special_box, text=car, relief=RIDGE,
-                    font=sh_font)
-                w.pack(side=LEFT, anchor=W)
-                w.bind('<Button-1>', self.insert_special)
-            h = int(1.1 * abs(sh_font['size']))
-            self.special_box.geometry(f'1x{h}+{event.x_root}+{event.y_root}')
 
     def text_width(self):
         pix_per_char = Fonts.font.measure('0') # pixels per char in this font
@@ -228,9 +187,6 @@ class Editor(Frame):
             pass
 
     def update(self, event):
-        if self.control:
-            self.control = False
-            return 'break'
         self.update_line_col()
         self.zone.see(INSERT)
         if self.shift:
@@ -326,7 +282,6 @@ class Searcher:
             pattern = r'\m{}\M'.format(pattern)
         if case_insensitive.get():
             pattern = '(?i)' + pattern
-        print('pattern', pattern)
         res = self.zone().search(pattern, self.search_pos,
             count=found_length, regexp=True, **kw)
         ln = found_length.get()
@@ -425,41 +380,12 @@ def _close(*args):
 
 close_menu = None
 
-def close_dialog(event):
-    global current_doc, close_menu
-    if not docs:
-        return
-    line_num = int(event.widget.index(CURRENT).split('.')[0]) - 1
-    if not line_num in file_browser.doc_at_line:
-        return
-    doc_index = docs.index(file_browser.doc_at_line[line_num])
-    current_doc = doc_index
-    new_doc = docs[doc_index]
-    file_browser.select(new_doc)
-    close_menu = Menu(root, tearoff=0, relief=FLAT, background='#ddd')
-    close_menu.add_command(label=_('close'), command=_close)
-    close_menu.post(event.x_root, event.y_root - 10)
-
 def close_window(*args):
-    while docs:
-        current_doc = -1
-        _close()
+    _close()
     root.destroy()
 
 def default_dir():
     return os.getcwd()
-
-def make_patterns(*args):
-    importlib.reload(langs["python"])
-    kw_pattern = '|'.join([r'\b{}\b'.format(kw)
-        for kw in langs["python"].keywords])
-    builtins_pattern = '|'.join([r'\b{}\b'.format(b)
-        for b in langs["python"].builtins])
-    patterns['.py'] = [(kw_pattern, 'keyword'), (builtins_pattern, 'builtin')]
-    patterns['.py']+=[(square_brackets, 'square_bracket'),
-        (parenthesis, 'parenthesis'), (curly_braces, 'curly_brace')]
-    if docs:
-        docs[current_doc].editor.syntax_highlight()
 
 def new_module():
     ext = 'bzh'
@@ -521,7 +447,7 @@ def open_module(file_name, force_reload=False, force_encoding=None):
     doc.editor.zone.focus()
 
 def replace(*args):
-    if docs:
+    if doc is not None:
         Searcher().replace()
 
 def save(*args):
@@ -561,7 +487,6 @@ def save_zone():
     return True
 
 def search(*args):
-    print('search')
     if doc is not None:
         Searcher().search()
 
@@ -592,20 +517,6 @@ def set_sizes():
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     ratio = w / Fonts.font.measure('0')
 
-
-def switch_to(new_index):
-    global current_doc
-    docs[current_doc].editor.frame.pack_forget()
-    new_doc = docs[new_index]
-    current_doc = new_index
-    docs[current_doc].editor.frame.pack()
-    root.title('TedPy - {}'.format(docs[current_doc].file_name))
-    file_browser.select(new_doc)
-    docs[current_doc].editor.zone.focus()
-    syntax_highlight.set(getattr(docs[current_doc].editor, "highlight", True))
-
-
-target = IntVar(root)
 full_word = BooleanVar(root)
 full_word.set(True)
 case_insensitive = BooleanVar(root)
