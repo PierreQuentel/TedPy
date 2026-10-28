@@ -119,11 +119,7 @@ class Editor(Frame):
         hbar['command'] = zone.xview
         zone['xscrollcommand'] = hbar.set
 
-        #zone.bind('<Key>', self.key_pressed)
         zone.bind('<KeyRelease>', self.update)
-        zone.bind('<MouseWheel>', self.wheel)
-        zone.bind('<Button-4>', self.wheel2) # wheel up
-        zone.bind('<Button-5>', self.wheel2) # wheel down
         zone.bind('<Button-1>', self.click)
         zone.bind('<ButtonRelease-1>', self.button_release)
         zone.bind('<Control-KeyRelease-v>', self.paste)
@@ -136,15 +132,13 @@ class Editor(Frame):
             font=Fonts.italic)
 
         zone.tag_raise(SEL, 'italic')
+
         zone.pack(expand=YES, fill=BOTH)
 
         self.zone = zone
-        self.scripts = []
         self.frame = frame
         self.shift = False
         self.control = False
-        self.last_update = None
-        self.last_highlight_time = 0.5
 
     def button_release(self, event):
         self.zone['cursor'] = 'xterm'
@@ -252,28 +246,15 @@ class Editor(Frame):
         self.label_line['text'] = "{: 5d}".format(self.current_line)
         self.label_column['text'] = "{: 3d}".format(column + 1)
 
-    def wheel(self,event):
-        """Mouse wheel for systems where events are Button-4 and Button-5."""
-        global wheel_delta
-        if event.delta != 0:
-            if wheel_delta is None or abs(event.delta) < wheel_delta:
-                wheel_delta = abs(event.delta) / wheel_coeff
-            delta = -event.delta / wheel_delta
-            self.slide('scroll', int(delta), 'units')
-        return "break" # don't propagate
-
-    def wheel2(self, event):
-        delta = -1 if event.num == 4 else 1
-        self.slide('scroll', delta, 'units')
 
 class Searcher:
     """Class for search dialogs."""
 
     def editor(self):
-        return docs[current_doc].editor
+        return doc.editor
 
     def zone(self):
-        return docs[current_doc].editor.zone
+        return doc.editor.zone
 
     def set_search_boundaries(self):
         selected = self.zone().tag_ranges(SEL)
@@ -684,7 +665,8 @@ def save_zone():
     return True
 
 def search(*args):
-    if docs:
+    print('search')
+    if doc is not None:
         Searcher().search()
 
 def search_in_files(*args):
