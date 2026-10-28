@@ -110,7 +110,6 @@ class Editor(Frame):
             font=Fonts.font, wrap=WORD, relief=FLAT, undo=True,
             autoseparators=True, bg=bg, fg=fg, selectforeground=fg,
             insertbackground=fg, selectbackground=colors['select'])
-        zone.vbar.config(command=self.slide)
         line_height = zone.dlineinfo(1.0)[-1] # in pixels
         text_height = int(int(root.winfo_screenheight() * 0.92) / line_height)
         zone['height'] = text_height
@@ -120,19 +119,15 @@ class Editor(Frame):
         hbar['command'] = zone.xview
         zone['xscrollcommand'] = hbar.set
 
-        zone.bind('<Key>', self.key_pressed)
+        #zone.bind('<Key>', self.key_pressed)
         zone.bind('<KeyRelease>', self.update)
         zone.bind('<MouseWheel>', self.wheel)
         zone.bind('<Button-4>', self.wheel2) # wheel up
         zone.bind('<Button-5>', self.wheel2) # wheel down
-        zone.bind('<Tab>', self.insert_tab)
-        zone.bind('<Shift-Tab>', self.remove_tab)
-        zone.bind('<Return>', self.insert_cr)
         zone.bind('<Button-1>', self.click)
         zone.bind('<ButtonRelease-1>', self.button_release)
         zone.bind('<Control-KeyRelease-v>', self.paste)
         zone.bind('<Control-Key>', self.set_control)
-        zone.bind('<Home>', self.home)
 
         zone.tag_config('found', foreground=bg, background=fg)
         zone.tag_config('selection', background=zone['selectbackground'],
@@ -155,16 +150,6 @@ class Editor(Frame):
         self.zone['cursor'] = 'xterm'
         self.update_line_col()
 
-    def change_encoding(self):
-        new_enc = self.encoding.get()
-        # Check that the document can be encoded in the new encoding
-        src = self.zone.get(1.0, END)
-        try:
-            src.encode(new_enc)
-        except:
-            tkinter.messagebox.showinfo(title=_('Encoding error'),
-                message=_('not encoding').format(self.prev_enc))
-
     def click(self,event):
         global close_menu
         self.zone.tag_remove('selection', 1.0, END)
@@ -179,81 +164,8 @@ class Editor(Frame):
     def get_infos(self, pos):
         ext = self.get_extension()
         pos = self.zone.index(pos)
-        if ext == '.html':
-            self.html_highlight() # reset self.scripts
-            if "script_in_html" in self.zone.tag_names(pos):
-                for (lang, begin, end) in self.scripts:
-                    if float(begin) <= float(pos) <= float(end):
-                        return lang, begin, end
         lang = ext2lang.get(ext)
         return lang, "1.0", END
-
-    def get_visible_text(self):
-        """Inspired by https://stackoverflow.com/questions/76691615"""
-        widget = self.zone
-        y = widget.winfo_height()
-        bd = int(widget.cget("borderwidth"))
-        start_index = int(widget.index(f"@0,{bd} linestart").split('.')[0])
-        end_index = int(widget.index(f"@0,{y} linestart").split('.')[0])
-        if widget.bbox(f'{end_index + 1}.0') is not None:
-            end_index += 1
-        return start_index, end_index
-
-    def goto(self, evt):
-        browser_line = int(evt.widget.index(CURRENT).split('.')[0])
-        line_num = self.function_line_nums[browser_line - 1]
-        self.browser.destroy()
-        self.zone.focus()
-        self.zone.mark_set(INSERT, '{}.0'.format(line_num))
-        self.zone.see(INSERT)
-
-    def home(self,event):
-        """Home key : go to start of line, after the indentation"""
-        left = self.zone.get('{}linestart'.format(self.zone.index(INSERT)),
-            INSERT)
-        if not left.strip(): # only spaces at the left of INSERT
-            return
-        nbspaces = len(left) - len(left.lstrip())
-        self.zone.mark_set(INSERT, '{}linestart+{}c'.format(
-             self.zone.index(INSERT), nbspaces))
-        return 'break'
-
-    def html_highlight(self):
-        txt = self.zone.get(1.0, END).rstrip() + '\n'
-        parser = HTMLParser(self)
-        # while editing there may be parser error, ignore them
-        try:
-            parser.feed(txt)
-            self.scripts = parser.scripts
-        except Exception as exc:
-            pass
-
-    def insert_cr(self,event):
-        """Handle Enter key"""
-        selected = self.zone.tag_ranges(SEL)
-        if selected: # remove selection
-            start,end = selected
-            self.zone.delete(*selected)
-            if self.zone.index(end).endswith('.0'):
-                self.zone.delete(start)
-
-        pos = self.zone.index(INSERT)
-        start = self.zone.index('{}linestart'.format(pos))
-        txt = self.zone.get(start, pos)
-        indent = len(txt) - len(txt.lstrip())
-
-        self.remove_trailing_whitespace()
-
-        # For a Python script, if line ends with ':', add indent
-        # Same for a JS files if line ends with '{'
-        lang, begin, end = self.get_infos(INSERT)
-        self.zone.insert(INSERT, '\n' + indent * ' ')
-        if lang in langs:
-            lineend = getattr(langs[lang], "autoindent_lineend", None)
-            if lineend is not None and txt.strip().endswith(lineend):
-                self.zone.insert(INSERT, spaces_per_tab * ' ')
-
-        return 'break'
 
     def insert_special(self, event):
         if self.zone.tag_ranges(SEL):
@@ -262,25 +174,10 @@ class Editor(Frame):
         self.special_box.destroy()
         self.special_box = False
 
-    def insert_tab(self,event):
-        """Replace tabs by a number of spaces"""
-        sel = self.zone.tag_ranges(SEL)
-        if not sel:
-            self.zone.insert(INSERT, ' ' * spaces_per_tab)
-        else:
-            first_line,last_line = [int(self.zone.index(x).split('.')[0])
-                for x in sel]
-            if self.zone.index(sel[1]).endswith('.0'):
-                last_line -= 1
-            for line in range(first_line, last_line + 1):
-                self.zone.insert(float(line), ' ' * spaces_per_tab)
-        return 'break'
-
     def italic(self, event):
         sel = self.zone.tag_ranges(SEL)
         if sel:
             names = self.zone.tag_names(sel[0])
-            print('tags ot sel start', names)
             if 'italic' not in names:
                 self.zone.tag_add('italic', *sel)
             else:
@@ -288,73 +185,6 @@ class Editor(Frame):
 
     def ix2pos(self, ix):
         return [int(x) for x in self.zone.index(ix).split('.')]
-
-    def key_pressed(self,event):
-        self.delete_end = False
-        if event.keysym in ['Shift_R', 'Shift_L']:
-            self.shift = True
-        elif event.keysym in ['Control_L', 'Control_R']:
-            self.control = True
-        elif event.keysym == 'Delete':
-            # if delete at the end of a line, remove trailing whitespaces
-            # of next line
-            pos = self.ix2pos(INSERT)
-            lineend = self.ix2pos('{}.0'.format(pos[0]) + 'lineend')[1]
-            if pos[1] == lineend:
-                self.delete_end = True
-
-    def mark_brace(self, pos):
-        if not syntax_highlight.get():
-            return
-
-        ext = self.get_extension()
-        if not ext in ['.py', '.js']:
-            return
-        self.zone.tag_remove('matching_brace', '1.0', END)
-
-        for p in pos + '-1c', pos, pos + '+1c':
-            px = self.zone.index(p)
-            if 'string' in self.zone.tag_names(px):
-                return
-            car = self.zone.get(px)
-            if car in '([{':
-                # opening brace : look for closing (after)
-                match, start, nb = ')]}'['([{'.index(car)], px, 1
-                incr, backwards, end_pos = "+1c", False, END
-                break
-            elif p in [pos, pos + "-1c"] and car in '}])':
-                if p == pos + "-1c" and self.zone.get(pos) in '([{}])':
-                    continue
-                # closing brace : look for opening (before)
-                match, start, nb = '([{'[')]}'.index(car)], px, 1
-                incr, backwards, end_pos = "-1c", True, '1.0'
-                break
-        else:
-            return
-
-        pattern = '[\\' + car + '\\' + match + ']'
-        p = start
-        while True:
-            next_pos = self.zone.index(p + incr)
-            if backwards and re.match(pattern, self.zone.get(next_pos)):
-                p = next_pos
-            else:
-                p = self.zone.search(pattern, next_pos, end_pos,
-                    regexp=True, backwards=backwards)
-            if not p:
-                break
-            elif 'string' in self.zone.tag_names(p):
-                continue
-            else:
-                c = self.zone.get(p)
-                if c == car:
-                    nb += 1
-                elif c == match:
-                    nb -= 1
-                    if nb == 0:
-                        self.zone.tag_add('matching_brace', start)
-                        self.zone.tag_add('matching_brace', p)
-                        return
 
     def paste(self, event):
         return 'break'
@@ -364,34 +194,6 @@ class Editor(Frame):
             self.zone.edit_redo()
         except:
             pass
-
-    def remove_functions_browser(self):
-        if hasattr(self, "browser"):
-            self.browser.destroy()
-            delattr(self, "browser")
-            self.zone.tag_remove('word', 1.0, END)
-
-    def remove_tab(self,event):
-        """Shift selected zone to the left by the number of spaces specified
-        in spaces_per_tab
-        """
-        sel = self.zone.tag_ranges(SEL)
-        if not sel:
-            nb = spaces_per_tab
-            while nb and self.zone.get(INSERT) == ' ':
-                self.zone.delete(INSERT)
-                nb -= 1
-        else:
-            first_line,last_line = [int(self.zone.index(x).split('.')[0])
-                for x in sel]
-            if self.zone.index(sel[1]).endswith('.0'):
-                last_line -= 1
-            for line in range(first_line, last_line + 1):
-                nb = spaces_per_tab
-                while nb and self.zone.get(float(line)) == ' ':
-                    self.zone.delete(float(line))
-                    nb -= 1
-        return 'break'
 
     def remove_trailing_whitespace(self):
         """Removes trailing whitespaces."""
@@ -421,12 +223,9 @@ class Editor(Frame):
             h = int(1.1 * abs(sh_font['size']))
             self.special_box.geometry(f'1x{h}+{event.x_root}+{event.y_root}')
 
-    def slide(self, *args):
-        self.zone.yview(*args)
-
     def text_width(self):
         pix_per_char = Fonts.font.measure('0') # pixels per char in this font
-        return int(0.85 * root.winfo_screenwidth() / pix_per_char)
+        return int(root.winfo_screenwidth() / pix_per_char)
 
     def undo(self, *args):
         try:
@@ -435,8 +234,6 @@ class Editor(Frame):
             pass
 
     def update(self, event):
-        if event.keysym == 'Tab':
-            return 'break'
         if self.control:
             self.control = False
             return 'break'
@@ -556,7 +353,6 @@ class Searcher:
         file_name, line = zone.links[zone.tag_prevrange('link', CURRENT)]
         for ix, doc in enumerate(docs):
             if doc.file_name == file_name:
-                docs[current_doc].editor.remove_functions_browser()
                 switch_to(ix)
                 break
         else:
@@ -919,11 +715,9 @@ def set_fonts():
         weight="bold", slant="italic")
 
 def set_sizes():
-    # file browser covers 15% of width
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     ratio = w / Fonts.font.measure('0')
-    for doc in docs:
-        doc.editor.zone['width'] = int(0.85 * ratio)
+
 
 def switch_to(new_index):
     global current_doc
@@ -936,10 +730,6 @@ def switch_to(new_index):
     docs[current_doc].editor.zone.focus()
     syntax_highlight.set(getattr(docs[current_doc].editor, "highlight", True))
 
-def update_highlight(*args):
-    # update syntax highlighting if option is reset by user
-    if docs:
-        docs[current_doc].editor.syntax_highlight()
 
 target = IntVar(root)
 full_word = BooleanVar(root)
@@ -981,17 +771,12 @@ root.bind('<F6>', search_in_files)
 root.bind('<F8>', replace)
 root.protocol('WM_DELETE_WINDOW', close_window)
 
-
-# make root cover the entire screen, if supported by the OS
-try:
-    root.wm_state(newstate='zoomed')
-except:
-    root.wm_state(newstate='normal')
-
 set_fonts()
 
-root.geometry('{}x{}'.format(root.winfo_screenwidth(),
-    root.winfo_screenheight()))
+root.geometry('{}x{}'.format(
+    int(0.4 * root.winfo_screenwidth()),
+    int(0.4 * root.winfo_screenheight())))
+
 set_sizes()
 
 right = Frame(root)
