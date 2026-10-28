@@ -49,6 +49,10 @@ doc = None
 wheel_delta = None
 docs = []
 
+class Fonts:
+    pass
+
+
 class Document:
 
     def __init__(self, file_name, ext=None, text=""):
@@ -72,26 +76,30 @@ class Editor(Frame):
         frame = Frame(panel, relief=GROOVE, borderwidth=4)
 
         bar_bg = colors['bar']
-        self.font = font
+        self.font = Fonts.font
 
         shortcuts = Frame(frame, bg=bar_bg)
-        for (src,callback) in [('⤶', self.undo), ('⤷', self.redo),
-                ('≡', self.change_wrap), ('↑', self.change_size),
-                ('↓', self.change_size)]:
+        for (src,callback) in [('⤶', self.undo), ('⤷', self.redo)]:
             widget = Label(shortcuts, text=src, relief=RIDGE, bg='#FFF',
-                foreground='#000', font=sh_font)
+                foreground='#000', font=Fonts.sh)
             widget['width'] = 2
             widget.bind('<Button-1>', callback)
             widget.pack(side=LEFT, anchor=W)
 
+        w_italic = Label(shortcuts, text='I', relief=RIDGE, bg='#FFF',
+                foreground='#000', font=Fonts.menu_italic)
+        w_italic['width'] = 2
+        w_italic.bind('<Button-1>', self.italic)
+        w_italic.pack(side=LEFT, anchor=W)
+
         self.special_box = False
 
-        widget = Button(shortcuts, text='X', font=sh_font, relief=RIDGE)
+        widget = Button(shortcuts, text='X', font=Fonts.sh, relief=RIDGE)
         widget.bind('<Button-1>', _close)
         widget.pack(side=RIGHT, anchor=E)
         Label(shortcuts, text='    ', bg=bar_bg).pack(side=RIGHT)
-        self.label_line = Label(shortcuts, font=font, fg=fg, bg=bar_bg)
-        self.label_column = Label(shortcuts, font=font, fg=fg, bg=bar_bg)
+        self.label_line = Label(shortcuts, font=Fonts.font, fg=fg, bg=bar_bg)
+        self.label_column = Label(shortcuts, font=Fonts.font, fg=fg, bg=bar_bg)
         self.label_column.pack(side=RIGHT)
         Label(shortcuts, text=' | ', bg=bar_bg, fg=fg).pack(side=RIGHT)
         self.label_line.pack(side=RIGHT)
@@ -99,7 +107,7 @@ class Editor(Frame):
         shortcuts.pack(fill=BOTH)
 
         zone = ScrolledText(frame, width=self.text_width(),
-            font=font, wrap=WORD, relief=FLAT, undo=True,
+            font=Fonts.font, wrap=WORD, relief=FLAT, undo=True,
             autoseparators=True, bg=bg, fg=fg, selectforeground=fg,
             insertbackground=fg, selectbackground=colors['select'])
         zone.vbar.config(command=self.slide)
@@ -130,8 +138,9 @@ class Editor(Frame):
         zone.tag_config('selection', background=zone['selectbackground'],
             borderwidth=0)
         zone.tag_config('italic', foreground=fg, background=bg,
-            font=italic_font)
+            font=Fonts.italic)
 
+        zone.tag_raise(SEL, 'italic')
         zone.pack(expand=YES, fill=BOTH)
 
         self.zone = zone
@@ -155,29 +164,6 @@ class Editor(Frame):
         except:
             tkinter.messagebox.showinfo(title=_('Encoding error'),
                 message=_('not encoding').format(self.prev_enc))
-
-    def change_size(self, ev):
-        """Called when clicking on button ↑ or ↓"""
-        up = ev.widget.cget('text') == '↑'
-        for f in [font, sh_font]:
-            previous = f.cget('size')
-            if up:
-                f.config(size=previous - 1)
-            else:
-                f.config(size=previous + 1)
-        # update config
-        with open(config_file, encoding="utf-8") as f:
-            data = json.load(f)
-        data["font-size"] = font["size"]
-        with open(config_file, "w", encoding="utf-8") as out:
-            json.dump(data, out, indent=4)
-        set_sizes()
-
-    def change_wrap(self,*args):
-        if self.zone['wrap'] == NONE:
-            self.zone.config(wrap=WORD)
-        else:
-            self.zone.config(wrap=NONE)
 
     def click(self,event):
         global close_menu
@@ -289,6 +275,16 @@ class Editor(Frame):
             for line in range(first_line, last_line + 1):
                 self.zone.insert(float(line), ' ' * spaces_per_tab)
         return 'break'
+
+    def italic(self, event):
+        sel = self.zone.tag_ranges(SEL)
+        if sel:
+            names = self.zone.tag_names(sel[0])
+            print('tags ot sel start', names)
+            if 'italic' not in names:
+                self.zone.tag_add('italic', *sel)
+            else:
+                self.zone.tag_remove('italic', *sel)
 
     def ix2pos(self, ix):
         return [int(x) for x in self.zone.index(ix).split('.')]
@@ -429,7 +425,7 @@ class Editor(Frame):
         self.zone.yview(*args)
 
     def text_width(self):
-        pix_per_char = font.measure('0') # pixels per char in this font
+        pix_per_char = Fonts.font.measure('0') # pixels per char in this font
         return int(0.85 * root.winfo_screenwidth() / pix_per_char)
 
     def undo(self, *args):
@@ -984,8 +980,7 @@ def save_zone():
         tkinter.messagebox.showerror('Encoding error',
             message=message)
         return False
-    # set linefeed
-    data = set_linefeed(data)
+
     with open(doc.file_name, 'wb') as out:
         out.write(data)
     doc.text = zone.get(1.0, '{}-1c'.format(END))
@@ -1010,33 +1005,26 @@ def set_fonts():
         family = "Consolas"
     else:
         family = "Courier New"
-    font = tkinter.font.Font(family=family, size=fsize)
-    italic_font = tkinter.font.Font(family=family, size=fsize,
-        slant="italic")
-    sh_font = tkinter.font.Font(family=family, size=int(1.5 * fsize),
+    Fonts.font = tkinter.font.Font(family=family, size=fsize)
+    Fonts.bold = tkinter.font.Font(family=family, size=fsize,
         weight="bold")
-    bold_italic_font = tkinter.font.Font(family=family, size=int(1.5 * fsize),
+    Fonts.italic = tkinter.font.Font(family=family, size=fsize,
+        slant="italic")
+    Fonts.sh = tkinter.font.Font(family=family, size=int(1.5 * fsize),
+        weight="bold")
+    Fonts.menu_italic = tkinter.font.Font(family=family,
+        size=int(1.5 * fsize),
+        slant="italic")
+    Fonts.bold_italic = tkinter.font.Font(family=family,
+        size=int(1.5 * fsize),
         weight="bold", slant="italic")
 
 def set_sizes():
     # file browser covers 15% of width
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
-    ratio = w / font.measure('0')
+    ratio = w / Fonts.font.measure('0')
     for doc in docs:
         doc.editor.zone['width'] = int(0.85 * ratio)
-
-def set_linefeed(txt):
-    """Normalise linefeed"""
-    lf = linefeed.get()
-    # set all linefeeds to \n
-    txt = txt.replace(b'\r\n', b'\n').replace(b'\r', b'\n')
-    if lf == 'Unix: \\n':
-        return txt
-    elif lf == 'Mac: \\r':
-        return txt.replace(b'\n', b'\r')
-    else:
-        return txt.replace(b'\n', b'\r\n')
-
 
 def switch_to(new_index):
     global current_doc
