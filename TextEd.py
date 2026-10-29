@@ -36,18 +36,11 @@ with open(os.path.join(this_dir, 'themes', theme + '.json'),
     bg = backgrounds.get("default", "#fff")
     fg = colors['color']
 
-# parameters
-wheel_coeff = 2 # increase wheel scrolling
-spaces_per_tab = 4
-
 root = Tk() # needed here for font definitions
 root.title("TextEd")
 
-# global variables
-current_doc = None
+# global variable
 doc = None
-wheel_delta = None
-docs = []
 
 class Fonts:
     pass
@@ -70,6 +63,7 @@ class Document:
         self.text = text
         self.ext = ext or os.path.splitext(file_name)[1][1:]
 
+
 class Editor(Frame):
 
     def __init__(self):
@@ -79,7 +73,7 @@ class Editor(Frame):
         self.font = Fonts.font
 
         shortcuts = Frame(frame, bg=bar_bg)
-        for (src,callback) in [('⤶', self.undo), ('⤷', self.redo)]:
+        for (src, callback) in [('⤶', self.undo), ('⤷', self.redo)]:
             widget = Label(shortcuts, text=src, relief=RIDGE, bg='#FFF',
                 foreground='#000', font=Fonts.sh)
             widget['width'] = 2
@@ -114,11 +108,6 @@ class Editor(Frame):
         text_height = int(int(root.winfo_screenheight() * 0.92) / line_height)
         zone['height'] = text_height
 
-        hbar = Scrollbar(frame, name='hbar', orient=HORIZONTAL)
-        hbar.pack(side=BOTTOM, fill=BOTH, expand=YES)
-        hbar['command'] = zone.xview
-        zone['xscrollcommand'] = hbar.set
-
         zone.bind('<KeyRelease>', self.update)
         zone.bind('<Button-1>', self.click)
         zone.bind('<ButtonRelease-1>', self.button_release)
@@ -143,12 +132,8 @@ class Editor(Frame):
         self.update_line_col()
 
     def click(self,event):
-        global close_menu
         self.zone.tag_remove('selection', 1.0, END)
         self.zone.tag_remove('found', 1.0, END)
-        if close_menu is not None:
-            close_menu.unpost()
-            close_menu = None
 
     def insert_special(self, event):
         if self.zone.tag_ranges(SEL):
@@ -166,7 +151,7 @@ class Editor(Frame):
             else:
                 self.zone.tag_remove('italic', *sel)
         return 'break'
-        
+
     def ix2pos(self, ix):
         return [int(x) for x in self.zone.index(ix).split('.')]
 
@@ -351,8 +336,7 @@ def ask_module(*args):
 
 def check_file_change():
     # check every second if file has been modified by another program
-    if docs and docs[current_doc].has_name:
-        doc = docs[current_doc]
+    if doc is not None:
         if os.path.exists(doc.file_name): # may have been moved or deleted
             if doc.last_modif != os.stat(doc.file_name).st_mtime:
                 askreload = tkinter.messagebox.askyesno(
@@ -377,8 +361,6 @@ def _close(*args):
             return
     doc.editor.frame.pack_forget()
     root.title('TextEd')
-
-close_menu = None
 
 def close_window(*args):
     _close()
@@ -421,7 +403,6 @@ def open_module(file_name, force_reload=False, force_encoding=None):
     with open(file_name, 'r', encoding=file_encoding) as f:
         data = json.load(f)
     txt = data['text']
-    txt = txt.replace('\t', ' ' * spaces_per_tab)
     # internally use \n, otherwise tkinter adds an extra whitespace
     # for each line
     txt = txt.replace('\r\n', '\n')
@@ -500,8 +481,6 @@ def set_fonts():
     else:
         family = "Courier New"
     Fonts.font = tkinter.font.Font(family=family, size=fsize)
-    Fonts.bold = tkinter.font.Font(family=family, size=fsize,
-        weight="bold")
     Fonts.italic = tkinter.font.Font(family=family, size=fsize,
         slant="italic")
     Fonts.sh = tkinter.font.Font(family=family, size=int(1.5 * fsize),
@@ -509,9 +488,6 @@ def set_fonts():
     Fonts.menu_italic = tkinter.font.Font(family=family,
         size=int(1.5 * fsize),
         slant="italic")
-    Fonts.bold_italic = tkinter.font.Font(family=family,
-        size=int(1.5 * fsize),
-        weight="bold", slant="italic")
 
 def set_sizes():
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
@@ -523,9 +499,9 @@ case_insensitive = BooleanVar(root)
 case_insensitive.set(True)
 found_length = IntVar(root)
 
-menubar=Menu(root)
+menubar = Menu(root)
 
-menuModule=Menu(menubar, tearoff=0)
+menuModule = Menu(menubar, tearoff=0)
 menu_new = Menu(menuModule, tearoff=0)
 menuModule.add_command(label=_('new'), accelerator='Ctrl+N', command=new_module)
 menuModule.add_command(label=_('open'), accelerator='Ctrl+O',
@@ -537,7 +513,7 @@ nb_menu_items = menuModule.index(END)
 
 menubar.add_cascade(menu=menuModule, label=_('file'))
 
-menuEdition=Menu(menubar, tearoff=0)
+menuEdition = Menu(menubar, tearoff=0)
 menuEdition.add_command(label=_('search'), command=search, accelerator="F5")
 menuEdition.add_command(label=_('replace'), command=replace, accelerator="F8")
 menubar.add_cascade(menu=menuEdition, label=_('edit'))
@@ -559,11 +535,8 @@ root.geometry('{}x{}'.format(
 
 set_sizes()
 
-right = Frame(root)
-
-panel = Frame(right)
+panel = Frame(root)
 panel.pack(expand=YES, fill=BOTH)
-right.pack(expand=YES, fill=BOTH)
 
 check_file_change()
 
