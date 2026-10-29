@@ -462,7 +462,7 @@ def save_as():
     if doc is None:
         return
     file_name = asksaveasfilename(
-        initialfile=os.path.basename(docs[current_doc].file_name),
+        initialfile=os.path.basename(doc.file_name),
         initialdir=default_dir())
     if file_name:
         doc.file_name = os.path.normpath(file_name)
