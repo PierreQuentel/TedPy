@@ -953,9 +953,23 @@ class Searcher:
                 command=self.make_search).pack()
         case_insensitive.set(False)
 
+    def search_in_cpython(self):
+        self.top = Toplevel(root)
+        self.top.title(_('search in cpython'))
+        self.top.transient(root)
+        self.top.protocol('WM_DELETE_WINDOW', self.end_search_cpython)
+        self.searched = Entry(self.top, relief=GROOVE, borderwidth=4)
+        self.searched.pack()
+        self.searched.focus()
+        Button(self.top, text=_('search'),
+                command=self.make_search_cpython).pack()
+
     def end_search(self):
         self.zone().tag_remove('selection', 1.0, END)
         self.zone().tag_remove('found', 1.0, END)
+        self.top.destroy()
+
+    def end_search_cpython(self):
         self.top.destroy()
 
     def make_search(self):
@@ -971,6 +985,64 @@ class Searcher:
         else:
             tkinter.messagebox.showinfo(title=_('search'),
                 message=_('Not found'))
+
+    def make_search_cpython(self):
+        """Search in CPython repository
+        Tables are produced by script """
+        name = self.searched.get()
+        pattern = rf'^{name} (?P<line_num>\d+) (?P<file_num>\d+)\n'
+
+        table_dir = os.path.join(this_dir, 'tables')
+
+        define_files_path = os.path.join(table_dir, 'files')
+        define_files = None
+
+        top = Toplevel()
+        zone = ScrolledText(top, width=120, height=40)
+        zone.links = {}
+        zone.pack()
+        zone.tag_config('link', foreground="blue", underline=1)
+        zone.tag_bind('link', '<Button-1>', self.open_file_cpython)
+        zone.tag_bind('link', "<Enter>", lambda *args: zone.config(cursor="hand1"))
+        zone.tag_bind('link', "<Leave>", lambda *args: zone.config(cursor=""))
+        top.title(_('search_in_cpython'))
+        zone.insert(END, _('string').format(name))
+
+        for table in ['defines', 'functions']:
+            path = os.path.join(table_dir, table)
+            with open(path, encoding='utf-8') as f:
+                for line in f:
+                    if mo := re.match(pattern, line):
+                        file_num = int(mo.group('file_num'))
+                        line_num = int(mo.group('line_num'))
+                        if define_files is None:
+                            with open(define_files_path, encoding='utf-8') as f:
+                                define_files = f.readlines()
+                        file_name = define_files[file_num].strip()
+                        full_name = os.path.join(config['cpython'], file_name)
+                        start = zone.index('end-1c').split('.')[0]
+                        zone.insert(END, f'{file_name} line {line_num}\n', "link")
+                        zone.links[start] = (full_name, line_num)
+
+    def open_file_cpython(self, event):
+        zone = event.widget
+        zone_line = zone.index(CURRENT).split('.')[0]
+        file_name, line = zone.links[zone_line]
+        print('open', file_name)
+        line -= 1
+        for ix, doc in enumerate(docs):
+            if doc.file_name == file_name:
+                docs[current_doc].editor.remove_functions_browser()
+                switch_to(ix)
+                break
+        else:
+            # not found, open file
+            open_module(file_name)
+        ed = docs[current_doc].editor
+        ed.zone.focus()
+        ed.zone.mark_set(INSERT, '{}.0'.format(line + 1))
+        ed.zone.see(INSERT)
+        ed.print_line_nums()
 
     def open_file(self, event):
         zone = event.widget
@@ -1032,7 +1104,7 @@ class Searcher:
                         mo = re.search(pattern, rest, flags=flags)
                     except:
                         print('error with pattern', pattern)
-                        raise
+                        break
                     if mo:
                         if not flag_dir:
                             zone.insert(END,'\n\n' + dirpath)
@@ -1239,6 +1311,9 @@ def html_encoding(html):
         mo = re.search(r'charset\s*=\s*(.+)', content, re.I + re.S)
         if mo:
             return mo.groups()[0]
+
+def make_cpython_search(*args):
+    print('search in cpython')
 
 def make_patterns(*args):
     importlib.reload(langs["python"])
@@ -1537,6 +1612,9 @@ def search(*args):
     if docs:
         Searcher().search()
 
+def search_in_cpython(*args):
+    Searcher().search_in_cpython()
+
 def search_in_files(*args):
     if docs:
         Searcher().search_in_files()
@@ -1667,6 +1745,8 @@ menuEdition=Menu(menubar, tearoff=0)
 menuEdition.add_command(label=_('search'), command=search, accelerator="F5")
 menuEdition.add_command(label=_('search in files'), command=search_in_files,
     accelerator="F6")
+menuEdition.add_command(label=_('search in CPython'),
+    command=search_in_cpython)
 menuEdition.add_command(label=_('replace'), command=replace, accelerator="F8")
 menubar.add_cascade(menu=menuEdition, label=_('edit'))
 
