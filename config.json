@@ -1,6 +1,5 @@
 {
     "versions": [
-        ["Python 3.15", "c:\\Python315\\python.exe"],
         ["Python 3.14", "c:\\Python314\\python.exe"],
         ["Python 3.13", "c:\\Python313\\python.exe"],
         ["Local build", "d:\\cpython\\PCBuild\\amd64\\python_d.exe"],
@@ -11,6 +10,7 @@
         ["Python 3.8", "c:\\Python38\\python.exe"],
         ["Python 3.7", "c:\\Python37\\python.exe"]
     ],
+    "cpython": "d:\\cpython",
     "encodings": [
         "ascii",
         "iso-8859-1",
